@@ -1,12 +1,9 @@
-# Gengar Music: este arquivo cria o app Android inteiro e compila o APK.
-# Salve em .github/workflows/compilar.yml, confirme e abra a aba Actions.
-name: Compilar Gengar Music
+name: Gengar Music APK
 on:
   push:
-    branches: [main]
   workflow_dispatch:
 jobs:
-  apk:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-java@v4
@@ -15,168 +12,415 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
-      - name: Criar o projeto Android
+          gradle-version: '8.7'
+      - name: Criar projeto
         run: |
-          mkdir -p app/src/main/assets app/src/main/java/com/gengar/music app/src/main/res/drawable
+          set -e
+          mkdir -p gm/app/src/main/java/com/gengar/music gm/app/src/main/res/drawable gm/app/src/main/assets
+          cd gm
           cat > settings.gradle <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement { repositories { google(); mavenCentral() } }
-          rootProject.name = 'GengarMusic'
+          rootProject.name = "GengarMusic"
           include ':app'
           EOF
           cat > build.gradle <<'EOF'
           plugins { id 'com.android.application' version '8.5.2' apply false }
+          EOF
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2g
           EOF
           cat > app/build.gradle <<'EOF'
           plugins { id 'com.android.application' }
           android {
             namespace 'com.gengar.music'
             compileSdk 34
-            defaultConfig { applicationId 'com.gengar.music'; minSdk 24; targetSdk 34; versionCode 1; versionName '1.0' }
-            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+            defaultConfig {
+              applicationId 'com.gengar.music'
+              minSdk 24
+              targetSdk 34
+              versionCode 2
+              versionName '2.0'
+            }
           }
           EOF
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
             <uses-permission android:name="android.permission.INTERNET"/>
-            <application android:usesCleartextTraffic="true" android:label="Gengar Music" android:icon="@drawable/ic" android:theme="@android:style/Theme.Material.NoActionBar">
-              <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden">
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+            <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+            <uses-permission android:name="android.permission.WAKE_LOCK"/>
+            <application android:label="Gengar Music" android:icon="@drawable/ic" android:usesCleartextTraffic="true" android:theme="@android:style/Theme.Material.NoActionBar">
+              <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN"/>
                   <category android:name="android.intent.category.LAUNCHER"/>
                 </intent-filter>
               </activity>
+              <service android:name=".MusicService" android:exported="false" android:foregroundServiceType="mediaPlayback"/>
             </application>
           </manifest>
           EOF
           cat > app/src/main/res/drawable/ic.xml <<'EOF'
           <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-            <path android:fillColor="#0A0614" android:pathData="M0,0h108v108h-108z"/>
-            <path android:fillColor="#6B3FD4" android:pathData="M22,40L30,14L46,34Q54,32 62,34L78,14L86,40Q96,60 84,76Q54,96 24,76Q12,60 22,40Z"/>
-            <path android:fillColor="#E8265A" android:pathData="M34,50L50,56L44,64ZM74,50L58,56L64,64Z"/>
-            <path android:fillColor="#FFFFFF" android:pathData="M30,66Q54,78 78,66Q74,86 54,88Q34,86 30,66Z"/>
+            <path android:fillColor="#1A0B3A" android:pathData="M0,0h108v108h-108z"/>
+            <path android:fillColor="#7B4BE0" android:pathData="M24,70 C14,48 30,26 54,30 78,26 94,48 84,70 78,86 30,86 24,70z"/>
+            <path android:fillColor="#E8265A" android:pathData="M36,48 L52,56 L44,62z M72,48 L56,56 L64,62z"/>
+            <path android:fillColor="#FFFFFF" android:pathData="M38,68 Q54,78 70,68 Q68,82 54,84 Q40,82 38,68z"/>
+          </vector>
+          EOF
+          cat > app/src/main/res/drawable/ic_notif.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillColor="#FFFFFFFF" android:pathData="M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z"/>
+          </vector>
+          EOF
+          cat > app/src/main/res/drawable/ic_heart.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillColor="#FFFFFFFF" android:pathData="M16.5,3c-1.74,0 -3.41,0.81 -4.5,2.09C10.91,3.81 9.24,3 7.5,3 4.42,3 2,5.42 2,8.5c0,3.78 3.4,6.86 8.55,11.54L12,21.35l1.45,-1.32C18.6,15.36 22,12.28 22,8.5 22,5.42 19.58,3 16.5,3zM12.1,18.55l-0.1,0.1 -0.1,-0.1C7.14,14.24 4,11.39 4,8.5 4,6.5 5.5,5 7.5,5c1.54,0 3.04,0.99 3.57,2.36h1.87C13.46,5.99 14.96,5 16.5,5c2,0 3.5,1.5 3.5,3.5 0,2.89 -3.14,5.74 -7.9,10.05z"/>
+          </vector>
+          EOF
+          cat > app/src/main/res/drawable/ic_heart_on.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillColor="#FFE8265A" android:pathData="M12,21.35l-1.45,-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78 -3.4,6.86 -8.55,11.54L12,21.35z"/>
+          </vector>
+          EOF
+          cat > app/src/main/res/drawable/ic_shuffle.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillColor="#FFFFFFFF" android:pathData="M10.59,9.17L5.41,4 4,5.41l5.17,5.17 1.42,-1.41zM14.5,4l2.04,2.04L4,18.59 5.41,20 17.96,7.46 20,9.5V4h-5.5zM14.83,13.41l-1.41,1.41 3.13,3.13L14.5,20H20v-5.5l-2.04,2.04 -3.13,-3.13z"/>
+          </vector>
+          EOF
+          cat > app/src/main/res/drawable/ic_shuffle_on.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillColor="#FFFFFFFF" android:pathData="M10.59,7.17L5.41,2 4,3.41l5.17,5.17 1.42,-1.41zM14.5,2l2.04,2.04L4,16.59 5.41,18 17.96,5.46 20,7.5V2h-5.5zM14.83,11.41l-1.41,1.41 3.13,3.13L14.5,18H20v-5.5l-2.04,2.04 -3.13,-3.13z"/>
+            <path android:fillColor="#FFE8265A" android:pathData="M10.4,21.2a1.6,1.6 0 1,0 3.2,0a1.6,1.6 0 1,0 -3.2,0z"/>
           </vector>
           EOF
           cat > app/src/main/java/com/gengar/music/MainActivity.java <<'EOF'
           package com.gengar.music;
 
+          import android.Manifest;
           import android.app.Activity;
+          import android.content.ClipData;
           import android.content.Intent;
+          import android.graphics.Bitmap;
+          import android.graphics.BitmapFactory;
+          import android.graphics.Color;
           import android.net.Uri;
+          import android.os.Build;
           import android.os.Bundle;
           import android.util.Base64;
-          import android.webkit.*;
-          import java.io.*;
-          import java.net.*;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.ValueCallback;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import java.io.File;
+          import java.io.FileOutputStream;
+          import java.io.InputStream;
+          import java.io.RandomAccessFile;
+          import java.net.HttpURLConnection;
+          import java.net.URL;
 
           public class MainActivity extends Activity {
-            WebView w;
+            static MainActivity inst;
+            WebView web;
             ValueCallback<Uri[]> cb;
 
-            protected void onCreate(Bundle b) {
+            static void js(final String c) {
+              final MainActivity a = inst;
+              if (a == null || a.web == null) return;
+              a.runOnUiThread(() -> a.web.evaluateJavascript("window.gmCmd&&gmCmd('" + c + "')", null));
+            }
+
+            @Override protected void onCreate(Bundle b) {
               super.onCreate(b);
-              getWindow().setStatusBarColor(0xFF05030A);
-              getWindow().setNavigationBarColor(0xFF05030A);
-              w = new WebView(this);
-              w.setBackgroundColor(0xFF05030A);
-              setContentView(w);
-              WebSettings s = w.getSettings();
+              inst = this;
+              int bg = Color.parseColor("#05030A");
+              getWindow().setStatusBarColor(bg);
+              getWindow().setNavigationBarColor(bg);
+              web = new WebView(this);
+              web.setBackgroundColor(bg);
+              WebSettings s = web.getSettings();
               s.setJavaScriptEnabled(true);
               s.setDomStorageEnabled(true);
               s.setMediaPlaybackRequiresUserGesture(false);
-              w.setWebChromeClient(new WebChromeClient() {
-                public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> c, FileChooserParams p) {
+              web.addJavascriptInterface(new Bridge(), "Android");
+              web.setWebChromeClient(new WebChromeClient() {
+                @Override public boolean onShowFileChooser(WebView w, ValueCallback<Uri[]> c, FileChooserParams p) {
                   if (cb != null) cb.onReceiveValue(null);
                   cb = c;
                   Intent i = new Intent(Intent.ACTION_GET_CONTENT);
                   i.addCategory(Intent.CATEGORY_OPENABLE);
                   i.setType("audio/*");
                   i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-                  startActivityForResult(i, 1);
+                  try { startActivityForResult(i, 11); } catch (Exception e) { cb = null; return false; }
                   return true;
                 }
               });
-              w.addJavascriptInterface(new Bridge(), "Android");
-              w.loadUrl("file:///android_asset/index.html");
+              setContentView(web);
+              web.loadUrl("file:///android_asset/index.html");
+              if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
             }
 
-            protected void onActivityResult(int r, int c, Intent d) {
-              if (cb == null) return;
-              Uri[] u = null;
-              if (c == RESULT_OK && d != null) {
-                if (d.getClipData() != null) {
-                  int n = d.getClipData().getItemCount();
-                  u = new Uri[n];
-                  for (int k = 0; k < n; k++) u[k] = d.getClipData().getItemAt(k).getUri();
-                } else if (d.getData() != null) {
-                  u = new Uri[]{d.getData()};
+            @Override protected void onActivityResult(int rq, int rs, Intent d) {
+              super.onActivityResult(rq, rs, d);
+              if (rq == 11 && cb != null) {
+                Uri[] r = null;
+                if (rs == RESULT_OK && d != null) {
+                  ClipData cd = d.getClipData();
+                  if (cd != null) {
+                    r = new Uri[cd.getItemCount()];
+                    for (int i = 0; i < r.length; i++) r[i] = cd.getItemAt(i).getUri();
+                  } else if (d.getData() != null) {
+                    r = new Uri[]{d.getData()};
+                  }
                 }
+                cb.onReceiveValue(r);
+                cb = null;
               }
-              cb.onReceiveValue(u);
-              cb = null;
             }
 
-            public void onBackPressed() { moveTaskToBack(true); }
+            @Override public void onBackPressed() { moveTaskToBack(true); }
+
+            @Override protected void onDestroy() {
+              super.onDestroy();
+              inst = null;
+              stopService(new Intent(this, MusicService.class));
+            }
+
+            static String esc(String s) {
+              return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ").replace("\r", " ");
+            }
+
+            static String safe(String s) { return s.replaceAll("[^A-Za-z0-9_]", ""); }
 
             class Bridge {
-              @JavascriptInterface
-              public void get(final String url, final String id) {
+              @JavascriptInterface public void get(final String url, final String id) {
                 new Thread(() -> {
                   String r;
-                  try {
-                    String u = url;
-                    HttpURLConnection c;
-                    int hops = 0;
-                    while (true) {
-                      c = (HttpURLConnection) new URL(u).openConnection();
-                      c.setInstanceFollowRedirects(false);
-                      c.setConnectTimeout(15000);
-                      c.setReadTimeout(30000);
-                      c.setRequestProperty("User-Agent", "Mozilla/5.0 GengarMusic");
-                      int code = c.getResponseCode();
-                      if (code >= 300 && code < 400 && hops++ < 6) {
-                        u = new URL(new URL(u), c.getHeaderField("Location")).toString();
-                        continue;
-                      }
-                      if (code != 200) throw new Exception("HTTP " + code);
-                      break;
-                    }
-                    String ct = c.getContentType();
-                    if (ct != null && ct.startsWith("text/")) throw new Exception("O link nao e de um arquivo de audio");
-                    long t = 0;
-                    try (InputStream in = c.getInputStream(); FileOutputStream o = new FileOutputStream(new File(getCacheDir(), id))) {
-                      byte[] buf = new byte[65536];
-                      int n;
-                      while ((n = in.read(buf)) > 0) { o.write(buf, 0, n); t += n; }
-                    }
-                    String type = ct == null ? "audio/mpeg" : ct.split(";")[0].trim();
-                    r = "{\"ok\":true,\"size\":" + t + ",\"type\":\"" + type + "\"}";
-                  } catch (Exception e) {
-                    String m = String.valueOf(e.getMessage()).replace("\\", "/").replace("\"", "'").replace("\n", " ");
-                    r = "{\"ok\":false,\"err\":\"" + m + "\"}";
-                  }
-                  final String js = "gmDone('" + id + "'," + r + ")";
-                  runOnUiThread(() -> w.evaluateJavascript(js, null));
+                  try { r = download(url, safe(id)); }
+                  catch (Exception e) { r = "{\"ok\":false,\"err\":\"" + esc(String.valueOf(e.getMessage())) + "\"}"; }
+                  final String res = r;
+                  runOnUiThread(() -> web.evaluateJavascript("gmDone('" + id + "'," + res + ")", null));
                 }).start();
               }
 
-              @JavascriptInterface
-              public String chunk(String id, int off, int len) {
-                try (RandomAccessFile f = new RandomAccessFile(new File(getCacheDir(), id), "r")) {
+              @JavascriptInterface public String chunk(String id, int off, int len) {
+                try (RandomAccessFile f = new RandomAccessFile(new File(getCacheDir(), safe(id)), "r")) {
                   f.seek(off);
-                  byte[] b = new byte[len];
-                  int n = f.read(b);
+                  byte[] buf = new byte[len];
+                  int n = f.read(buf);
                   if (n <= 0) return "";
-                  return Base64.encodeToString(b, 0, n, Base64.NO_WRAP);
-                } catch (Exception e) {
-                  return "";
-                }
+                  return Base64.encodeToString(buf, 0, n, Base64.NO_WRAP);
+                } catch (Exception e) { return ""; }
               }
 
-              @JavascriptInterface
-              public void del(String id) { new File(getCacheDir(), id).delete(); }
+              @JavascriptInterface public void del(String id) { new File(getCacheDir(), safe(id)).delete(); }
+
+              @JavascriptInterface public void media(String title, String artist, boolean playing, int posMs, int durMs, boolean shuffle, boolean fav) {
+                MusicService.title = title;
+                MusicService.artist = artist;
+                MusicService.playing = playing;
+                MusicService.pos = posMs;
+                MusicService.dur = durMs;
+                MusicService.shuffle = shuffle;
+                MusicService.fav = fav;
+                runOnUiThread(() -> MusicService.push(MainActivity.this));
+              }
+
+              @JavascriptInterface public void art(String b64) {
+                try {
+                  byte[] d = Base64.decode(b64, Base64.DEFAULT);
+                  Bitmap bm = BitmapFactory.decodeByteArray(d, 0, d.length);
+                  if (bm != null) MusicService.art = bm;
+                } catch (Exception e) { }
+              }
+            }
+
+            String download(String u, String id) throws Exception {
+              String cur = u;
+              HttpURLConnection c = null;
+              for (int i = 0; i < 8; i++) {
+                c = (HttpURLConnection) new URL(cur).openConnection();
+                c.setInstanceFollowRedirects(false);
+                c.setConnectTimeout(15000);
+                c.setReadTimeout(30000);
+                c.setRequestProperty("User-Agent", "Mozilla/5.0 GengarMusic");
+                int code = c.getResponseCode();
+                if (code >= 300 && code < 400) {
+                  String l = c.getHeaderField("Location");
+                  c.disconnect();
+                  if (l == null) throw new Exception("HTTP " + code);
+                  cur = new URL(new URL(cur), l).toString();
+                  continue;
+                }
+                if (code >= 400) throw new Exception("HTTP " + code);
+                break;
+              }
+              String t = c.getContentType();
+              if (t == null) t = "";
+              if (t.startsWith("text/")) throw new Exception("O link nao e de um arquivo de audio");
+              InputStream in = c.getInputStream();
+              FileOutputStream out = new FileOutputStream(new File(getCacheDir(), id));
+              byte[] buf = new byte[32768];
+              int n;
+              long size = 0;
+              while ((n = in.read(buf)) != -1) { out.write(buf, 0, n); size += n; }
+              out.close();
+              in.close();
+              return "{\"ok\":true,\"size\":" + size + ",\"type\":\"" + esc(t.split(";")[0].trim()) + "\"}";
+            }
+          }
+          EOF
+          cat > app/src/main/java/com/gengar/music/MusicService.java <<'EOF'
+          package com.gengar.music;
+
+          import android.app.Notification;
+          import android.app.NotificationChannel;
+          import android.app.NotificationManager;
+          import android.app.PendingIntent;
+          import android.app.Service;
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.pm.ServiceInfo;
+          import android.graphics.Bitmap;
+          import android.media.MediaMetadata;
+          import android.media.session.MediaSession;
+          import android.media.session.PlaybackState;
+          import android.os.Build;
+          import android.os.Bundle;
+          import android.os.IBinder;
+          import android.os.PowerManager;
+          import android.os.SystemClock;
+
+          public class MusicService extends Service {
+            static MusicService inst;
+            static String title = "Gengar Music", artist = "Gengar Music";
+            static boolean playing, shuffle, fav;
+            static long pos, dur;
+            static Bitmap art;
+            static final int ID = 7;
+            static final String CH = "gm_media";
+            MediaSession session;
+            NotificationManager nm;
+            PowerManager.WakeLock wl;
+            boolean fg;
+
+            static void push(Context c) {
+              if (inst == null) {
+                Intent i = new Intent(c, MusicService.class);
+                try {
+                  if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i); else c.startService(i);
+                } catch (Exception e) { }
+              } else inst.refresh(false);
+            }
+
+            @Override public void onCreate() {
+              super.onCreate();
+              inst = this;
+              nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+              if (Build.VERSION.SDK_INT >= 26) {
+                NotificationChannel ch = new NotificationChannel(CH, "Reprodução", NotificationManager.IMPORTANCE_LOW);
+                ch.setShowBadge(false);
+                nm.createNotificationChannel(ch);
+              }
+              session = new MediaSession(this, "GengarMusic");
+              session.setCallback(new MediaSession.Callback() {
+                @Override public void onPlay() { MainActivity.js("play"); }
+                @Override public void onPause() { MainActivity.js("pause"); }
+                @Override public void onStop() { MainActivity.js("pause"); }
+                @Override public void onSkipToNext() { MainActivity.js("next"); }
+                @Override public void onSkipToPrevious() { MainActivity.js("prev"); }
+                @Override public void onSeekTo(long p) { MainActivity.js("seek:" + p); }
+                @Override public void onCustomAction(String a, Bundle e) { MainActivity.js(a); }
+              });
+              session.setActive(true);
+              PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+              wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "gengar:music");
+              wl.setReferenceCounted(false);
+            }
+
+            @Override public int onStartCommand(Intent i, int f, int s) {
+              String a = i == null ? null : i.getAction();
+              if (a != null && a.startsWith("gm.")) MainActivity.js(a.substring(3));
+              else refresh(true);
+              return START_NOT_STICKY;
+            }
+
+            @Override public IBinder onBind(Intent i) { return null; }
+
+            @Override public void onTaskRemoved(Intent i) { stopSelf(); }
+
+            @Override public void onDestroy() {
+              inst = null;
+              if (wl != null && wl.isHeld()) wl.release();
+              session.release();
+              super.onDestroy();
+            }
+
+            void refresh(boolean force) {
+              updateSession();
+              Notification n = build();
+              if (playing || force) {
+                try {
+                  if (Build.VERSION.SDK_INT >= 29) startForeground(ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+                  else startForeground(ID, n);
+                  fg = true;
+                } catch (Exception e) { nm.notify(ID, n); }
+              } else {
+                if (fg) { stopForeground(false); fg = false; }
+                nm.notify(ID, n);
+              }
+              if (playing) { if (!wl.isHeld()) wl.acquire(10L * 60 * 60 * 1000); }
+              else if (wl.isHeld()) wl.release();
+            }
+
+            void updateSession() {
+              MediaMetadata.Builder m = new MediaMetadata.Builder()
+                .putString(MediaMetadata.METADATA_KEY_TITLE, title)
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
+                .putLong(MediaMetadata.METADATA_KEY_DURATION, dur);
+              if (art != null) {
+                m.putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, art);
+                m.putBitmap(MediaMetadata.METADATA_KEY_ART, art);
+              }
+              session.setMetadata(m.build());
+              long acts = PlaybackState.ACTION_PLAY | PlaybackState.ACTION_PAUSE | PlaybackState.ACTION_PLAY_PAUSE
+                | PlaybackState.ACTION_SKIP_TO_NEXT | PlaybackState.ACTION_SKIP_TO_PREVIOUS
+                | PlaybackState.ACTION_SEEK_TO | PlaybackState.ACTION_STOP;
+              PlaybackState.Builder p = new PlaybackState.Builder()
+                .setActions(acts)
+                .setState(playing ? PlaybackState.STATE_PLAYING : PlaybackState.STATE_PAUSED, pos, playing ? 1f : 0f, SystemClock.elapsedRealtime())
+                .addCustomAction(new PlaybackState.CustomAction.Builder("fav", "Curtir", fav ? R.drawable.ic_heart_on : R.drawable.ic_heart).build())
+                .addCustomAction(new PlaybackState.CustomAction.Builder("shuf", "Aleatório", shuffle ? R.drawable.ic_shuffle_on : R.drawable.ic_shuffle).build());
+              session.setPlaybackState(p.build());
+            }
+
+            PendingIntent pi(String c) {
+              Intent i = new Intent(this, MusicService.class).setAction("gm." + c);
+              return PendingIntent.getService(this, c.hashCode(), i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+            }
+
+            Notification build() {
+              Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CH) : new Notification.Builder(this);
+              Intent open = new Intent(this, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+              b.setSmallIcon(R.drawable.ic_notif)
+                .setContentTitle(title)
+                .setContentText(artist)
+                .setOngoing(playing)
+                .setShowWhen(false)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setContentIntent(PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE))
+                .addAction(fav ? R.drawable.ic_heart_on : R.drawable.ic_heart, "Curtir", pi("fav"))
+                .addAction(android.R.drawable.ic_media_previous, "Anterior", pi("prev"))
+                .addAction(playing ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play, playing ? "Pausar" : "Tocar", pi(playing ? "pause" : "play"))
+                .addAction(android.R.drawable.ic_media_next, "Próxima", pi("next"))
+                .addAction(shuffle ? R.drawable.ic_shuffle_on : R.drawable.ic_shuffle, "Aleatório", pi("shuf"))
+                .setStyle(new Notification.MediaStyle().setMediaSession(session.getSessionToken()).setShowActionsInCompactView(1, 2, 3));
+              if (art != null) b.setLargeIcon(art);
+              return b.build();
             }
           }
           EOF
@@ -198,9 +442,9 @@ jobs:
           .tm{display:flex;justify-content:space-between;color:var(--dim);font-size:13px}
           .ctl{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
           button{font:inherit;color:var(--ink);background:none;border:0}
-          .ctl button{font-size:24px;width:48px;height:48px;border-radius:50%;color:var(--dim)}
+          .ctl button{font-size:22px;width:42px;height:42px;border-radius:50%;color:var(--dim)}
           .ctl .on{color:var(--mag)}
-          .ctl .big{background:var(--red);color:#fff;width:64px;height:64px;font-size:28px;box-shadow:0 0 24px rgba(232,38,90,.5)}
+          .ctl .big{background:var(--red);color:#fff;width:60px;height:60px;font-size:26px;box-shadow:0 0 24px rgba(232,38,90,.5)}
           nav{display:flex;gap:8px;margin-bottom:12px}
           nav button{flex:1;padding:10px 2px;font-size:14px;border-radius:12px;background:var(--navy);color:var(--dim)}
           nav .on{background:var(--pur);color:#fff}
@@ -240,7 +484,7 @@ jobs:
           <div id="t" class="tt">Nenhuma música</div><div id="a" class="sub">Adicione músicas do celular</div>
           <input type="range" id="p" min="0" max="1000" value="0" aria-label="Posição">
           <div class="tm"><span id="c">0:00</span><span id="d">0:00</span></div>
-          <div class="ctl"><button id="sh" aria-label="Aleatório">⇄</button><button id="pv" aria-label="Anterior">⏮</button><button id="pl" class="big" aria-label="Tocar">▶</button><button id="nx" aria-label="Próxima">⏭</button><button id="rp" aria-label="Repetir">↻</button></div>
+          <div class="ctl"><button id="sh" aria-label="Aleatório">⇄</button><button id="pv" aria-label="Anterior">⏮</button><button id="pl" class="big" aria-label="Tocar">▶</button><button id="nx" aria-label="Próxima">⏭</button><button id="fv" aria-label="Curtir">♡</button><button id="rp" aria-label="Repetir">↻</button></div>
           <audio id="au"></audio></section>
           <nav><button class="on" data-v="s">Músicas</button><button data-v="l">Playlists</button><button data-v="dw">Baixar</button><button data-v="hs">Histórico</button></nav>
           <main id="s"><label class="add">Adicionar músicas<input type="file" id="f" accept="audio/*" multiple hidden></label><ul id="sl"></ul></main>
@@ -255,42 +499,48 @@ jobs:
           <script>
           const $=i=>document.getElementById(i),au=$('au'),B={};
           let S={songs:[],lists:[]},Q=[],qi=-1,sh=0,rp=0,db;
-          try{S=JSON.parse(localStorage.gm)}catch(e){}S.hist=S.hist||[];
+          try{S=JSON.parse(localStorage.gm)}catch(e){}S.hist=S.hist||[];S.fav=S.fav||[];
           const save=()=>{try{localStorage.gm=JSON.stringify(S)}catch(e){}};
           const esc=s=>String(s).replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
           const fm=s=>isFinite(s)?Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'):'0:00';
           try{const o=indexedDB.open('gm',1);o.onupgradeneeded=()=>o.result.createObjectStore('b');o.onsuccess=()=>{db=o.result}}catch(e){}
           const put=(id,b)=>{B[id]=b;try{db.transaction('b','readwrite').objectStore('b').put(b,id)}catch(e){}};
           const get=id=>B[id]?Promise.resolve(B[id]):new Promise(r=>{try{const q=db.transaction('b').objectStore('b').get(id);q.onsuccess=()=>r(q.result);q.onerror=()=>r()}catch(e){r()}});
+          const ms=()=>{try{const s=S.songs.find(x=>x.id==Q[qi]);Android.media(s?(s.t||s.n):$('t').textContent,(s&&s.by)||'Gengar Music',!au.paused,Math.round((au.currentTime||0)*1000),Math.round((isFinite(au.duration)?au.duration:0)*1000),!!sh,!!(s&&S.fav.includes(s.id)))}catch(e){}};
+          const fav=()=>{const id=Q[qi];if(id==null)return;const i=S.fav.indexOf(id);i<0?S.fav.push(id):S.fav.splice(i,1);save();draw();ms()};
+          function sendArt(){try{const x=new XMLSerializer().serializeToString(document.querySelector('.art')).replace('<svg ','<svg width="960" height="736" '),im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=512;const g=c.getContext('2d'),r=g.createLinearGradient(0,0,0,512);r.addColorStop(0,'#2a1060');r.addColorStop(1,'#05030a');g.fillStyle=r;g.fillRect(0,0,512,512);g.drawImage(im,16,104,480,368);Android.art(c.toDataURL('image/jpeg',.85).split(',')[1])};im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x)}catch(e){}}
+          window.gmCmd=c=>{if(c=='play'){au.src?au.play():$('pl').click()}else if(c=='pause')au.pause();else if(c=='next')step(1);else if(c=='prev')step(-1);else if(c=='fav')fav();else if(c=='shuf')$('sh').click();else if(c.indexOf('seek:')==0)au.currentTime=+c.slice(5)/1000};
           $('f').onchange=e=>{for(const f of e.target.files){const id=Date.now()+Math.random().toString(36).slice(2,6);put(id,f);S.songs.push({id,n:f.name.replace(/\.[^.]+$/,'')})}const n=e.target.files.length;save();draw();$('a').textContent=n+(n>1?' músicas adicionadas':' música adicionada');e.target.value=''};
           async function play(i,q){if(q)Q=q;qi=i;const id=Q[i],s=S.songs.find(x=>x.id==id),b=await get(id);if(!s||!b){$('a').textContent='Arquivo não encontrado. Adicione a música de novo.';return}au.src=URL.createObjectURL(b);au.play();S.hist=[id,...S.hist.filter(x=>x!=id)].slice(0,50);save();$('t').textContent=s.n;$('a').textContent='Gengar Music';draw()}
           const step=d=>{if(Q.length)play(sh?Math.floor(Math.random()*Q.length):(qi+d+Q.length)%Q.length)};
           $('pl').onclick=()=>au.src?(au.paused?au.play():au.pause()):S.songs.length&&play(0,S.songs.map(x=>x.id));
-          $('nx').onclick=()=>step(1);$('pv').onclick=()=>step(-1);
-          $('sh').onclick=e=>e.currentTarget.classList.toggle('on',sh=!sh);
+          $('nx').onclick=()=>step(1);$('pv').onclick=()=>step(-1);$('fv').onclick=fav;
+          $('sh').onclick=e=>{e.currentTarget.classList.toggle('on',sh=!sh);ms()};
           $('rp').onclick=e=>e.currentTarget.classList.toggle('on',rp=!rp);
-          au.onplay=au.onpause=()=>$('pl').textContent=au.paused?'▶':'⏸';
+          au.onplay=au.onpause=()=>{$('pl').textContent=au.paused?'▶':'⏸';ms()};
+          au.onplaying=au.onloadedmetadata=au.onseeked=ms;
           au.onended=()=>(qi<Q.length-1||sh||rp)&&step(1);
           au.ontimeupdate=()=>{$('c').textContent=fm(au.currentTime);$('d').textContent=fm(au.duration);$('p').value=au.duration?au.currentTime/au.duration*1000:0};
           $('p').oninput=e=>au.duration&&(au.currentTime=e.target.value/1000*au.duration);
           document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));$('s').hidden=b.dataset.v!='s';$('l').hidden=b.dataset.v!='l';$('dw').hidden=b.dataset.v!='dw';$('hs').hidden=b.dataset.v!='hs'});
           $('pc').onclick=()=>{const n=$('pn').value.trim();if(n){S.lists.push({n,ids:[]});$('pn').value='';save();draw()}};
-          document.onclick=e=>{const t=e.target;if(t.dataset.p)play(+t.dataset.p,S.songs.map(x=>x.id));if(t.dataset.r){const x=RES[t.dataset.r];x.save?dl(x.u,x.n+' - '+(x.by||'')):playUrl(x.u,x.n)}if(t.dataset.pi){const[j,i]=t.dataset.pi.split(',');play(+i,[...S.lists[j].ids])}if(t.dataset.rm){const[j,i]=t.dataset.rm.split(',');S.lists[j].ids.splice(+i,1);save();draw()}if(t.dataset.hp)play(+t.dataset.hp,S.hist.filter(i=>S.songs.some(x=>x.id==i)));if(t.dataset.x!==undefined){if(t.textContent=='Apagar'){t.textContent='Tem certeza?';setTimeout(draw,3000)}else{S.lists.splice(+t.dataset.x,1);save();draw()}}if(t.dataset.ds!==undefined){if(t.textContent=='✕'){t.textContent='Apagar?';setTimeout(draw,3000)}else delSong(S.songs[+t.dataset.ds].id)}if(t.dataset.l){const l=S.lists[t.dataset.l];if(l.ids.length)play(0,[...l.ids])}};
+          document.onclick=e=>{const t=e.target;if(t.dataset.p)play(+t.dataset.p,S.songs.map(x=>x.id));if(t.dataset.fv){const ids=S.fav.filter(i=>S.songs.some(x=>x.id==i));if(ids.length)play(0,ids)}if(t.dataset.r){const x=RES[t.dataset.r];x.save?dl(x.u,x.n,x.by):playUrl(x.u,x.n)}if(t.dataset.pi){const[j,i]=t.dataset.pi.split(',');play(+i,[...S.lists[j].ids])}if(t.dataset.rm){const[j,i]=t.dataset.rm.split(',');S.lists[j].ids.splice(+i,1);save();draw()}if(t.dataset.hp)play(+t.dataset.hp,S.hist.filter(i=>S.songs.some(x=>x.id==i)));if(t.dataset.x!==undefined){if(t.textContent=='Apagar'){t.textContent='Tem certeza?';setTimeout(draw,3000)}else{S.lists.splice(+t.dataset.x,1);save();draw()}}if(t.dataset.ds!==undefined){if(t.textContent=='✕'){t.textContent='Apagar?';setTimeout(draw,3000)}else delSong(S.songs[+t.dataset.ds].id)}if(t.dataset.l){const l=S.lists[t.dataset.l];if(l.ids.length)play(0,[...l.ids])}};
           document.onchange=e=>{const t=e.target;if(t.dataset.a&&t.value!==''){const l=S.lists[t.value];if(!l.ids.includes(t.dataset.a))l.ids.push(t.dataset.a);save();draw()}};
-          function draw(){const cur=Q[qi],nm=id=>(S.songs.find(x=>x.id==id)||{n:'?'}).n;
-          $('sl').innerHTML=S.songs.length?S.songs.map((s,i)=>`<li class="${s.id==cur?'now':''}"><button class="nm" data-p="${i}">${esc(s.n)}</button><select data-a="${s.id}"><option value="">＋ playlist</option>${S.lists.map((l,j)=>`<option value="${j}">${esc(l.n)}</option>`).join('')}</select><button class="rm" data-ds="${i}">✕</button></li>`).join(''):'<li class="empty">Nenhuma música ainda. Toque em Adicionar músicas e escolha arquivos do celular.</li>';
-          $('ll').innerHTML=S.lists.length?S.lists.map((l,j)=>`<li><b class="nm">${esc(l.n)}</b><button class="go" data-l="${j}">Tocar</button><button class="rm" data-x="${j}">Apagar</button><div class="tr">${l.ids.length?l.ids.map((id,i)=>`<div class="tk"><button class="nm" data-pi="${j},${i}">${esc(nm(id))}</button><button class="rm" data-rm="${j},${i}">✕</button></div>`).join(''):'Vazia. Use ＋ playlist na aba Músicas.'}</div></li>`).join(''):'<li class="empty">Crie sua primeira playlist.</li>';
+          function draw(){const cur=Q[qi],nm=id=>(S.songs.find(x=>x.id==id)||{n:'?'}).n,lk=S.fav.includes(cur);
+          $('fv').textContent=lk?'♥':'♡';$('fv').classList.toggle('on',lk);
+          $('sl').innerHTML=S.songs.length?S.songs.map((s,i)=>`<li class="${s.id==cur?'now':''}"><button class="nm" data-p="${i}">${S.fav.includes(s.id)?'♥ ':''}${esc(s.n)}</button><select data-a="${s.id}"><option value="">＋ playlist</option>${S.lists.map((l,j)=>`<option value="${j}">${esc(l.n)}</option>`).join('')}</select><button class="rm" data-ds="${i}">✕</button></li>`).join(''):'<li class="empty">Nenhuma música ainda. Toque em Adicionar músicas e escolha arquivos do celular.</li>';
+          $('ll').innerHTML='<li><b class="nm">♥ Favoritas</b><button class="go" data-fv="1">Tocar</button><div class="tr">'+S.fav.filter(i=>S.songs.some(x=>x.id==i)).length+' músicas</div></li>'+(S.lists.length?S.lists.map((l,j)=>`<li><b class="nm">${esc(l.n)}</b><button class="go" data-l="${j}">Tocar</button><button class="rm" data-x="${j}">Apagar</button><div class="tr">${l.ids.length?l.ids.map((id,i)=>`<div class="tk"><button class="nm" data-pi="${j},${i}">${esc(nm(id))}</button><button class="rm" data-rm="${j},${i}">✕</button></div>`).join(''):'Vazia. Use ＋ playlist na aba Músicas.'}</div></li>`).join(''):'<li class="empty">Crie sua primeira playlist.</li>');
           const H=S.hist.filter(i=>S.songs.some(x=>x.id==i));$('hl').innerHTML=H.length?H.map((id,i)=>`<li><button class="nm" data-hp="${i}">${esc(nm(id))}</button></li>`).join(''):'<li class="empty">Nada ouvido ainda. As músicas que você tocar aparecem aqui.</li>'}
-          function delSong(id){S.songs=S.songs.filter(x=>x.id!=id);S.lists.forEach(l=>l.ids=l.ids.filter(x=>x!=id));S.hist=S.hist.filter(x=>x!=id);delete B[id];try{db.transaction('b','readwrite').objectStore('b').delete(id)}catch(e){}save();draw()}
+          function delSong(id){S.songs=S.songs.filter(x=>x.id!=id);S.fav=S.fav.filter(x=>x!=id);S.lists.forEach(l=>l.ids=l.ids.filter(x=>x!=id));S.hist=S.hist.filter(x=>x!=id);delete B[id];try{db.transaction('b','readwrite').objectStore('b').delete(id)}catch(e){}save();draw()}
           let RES=[],jid=0;const pend={},st=t=>{$('dst').textContent=t};
           try{$('djk').value=localStorage.jk||''}catch(e){}
           function playUrl(u,n){Q=[];qi=-1;au.src=u;au.play();$('t').textContent=n;$('a').textContent='Ouvindo online';draw()}
-          function dl(u,n){const id='d'+(++jid)+Date.now();pend[id]=n;st('Baixando '+n+'...');Android.get(u,id)}
-          function gmDone(id,r){const n=pend[id];delete pend[id];if(!r.ok){st('Erro: '+r.err);return}
+          function dl(u,n,by){const id='d'+(++jid)+Date.now();pend[id]={n,by};st('Baixando '+n+'...');Android.get(u,id)}
+          function gmDone(id,r){const p=pend[id],n=p.n;delete pend[id];if(!r.ok){st('Erro: '+r.err);return}
           st('Salvando...');let off=0;const P=[],L=393216;
           (function nx(){const s=Android.chunk(id,off,L);if(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);P.push(u);off+=b.length;if(off<r.size)return setTimeout(nx,0)}
           Android.del(id);if(!off){st('Erro ao salvar o arquivo');return}
-          const sid=Date.now()+Math.random().toString(36).slice(2,6);put(sid,new Blob(P,{type:/^audio/.test(r.type)?r.type:'audio/mpeg'}));S.songs.push({id:sid,n});save();draw();st('Pronto: '+n+' (aba Músicas)')})()}
+          const sid=Date.now()+Math.random().toString(36).slice(2,6);put(sid,new Blob(P,{type:/^audio/.test(r.type)?r.type:'audio/mpeg'}));S.songs.push({id:sid,n:p.by?n+' - '+p.by:n,t:n,by:p.by||''});save();draw();st('Pronto: '+n+' (aba Músicas)')})()}
           $('dgo').onclick=()=>{const u=$('dlk').value.trim();if(!/^https?:\/\//i.test(u)){st('Cole um link que comece com http');return}let n='Música';try{n=decodeURIComponent(u.split('?')[0].split('/').pop()).replace(/\.[^.]+$/,'')||n}catch(e){}dl(u,n)};
           $('dbs').onclick=async()=>{const q=$('dq').value.trim(),j=$('djk').value.trim();if(!q)return;try{localStorage.jk=j}catch(e){}st('Buscando...');$('dres').innerHTML='';
           try{let R=[];
@@ -299,12 +549,13 @@ jobs:
           RES=R;st(R.length?R.length+' resultados':'Nada encontrado.');
           $('dres').innerHTML=R.map((t,i)=>`<li><span class="nm">${esc(t.n||'')}<small> ${esc(t.by||'')}</small></span><button class="go" data-r="${i}">${t.save?'Baixar':'Ouvir'}</button></li>`).join('')}catch(e){st('Erro na busca. Confira a internet e a chave.')}};
           $('hc').onclick=()=>{S.hist=[];save();draw()};
-          draw();
+          draw();setTimeout(sendArt,400);
           </script></body></html>
           EOF
-      - name: Compilar o APK
+      - name: Compilar
+        working-directory: gm
         run: gradle assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: Gengar-Music-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: gm/app/build/outputs/apk/debug/app-debug.apk
