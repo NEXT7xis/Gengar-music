@@ -40,8 +40,9 @@ jobs:
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <application android:label="Gengar Music" android:icon="@drawable/ic" android:theme="@android:style/Theme.Material.NoActionBar">
-              <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <application android:usesCleartextTraffic="true" android:label="Gengar Music" android:icon="@drawable/ic" android:theme="@android:style/Theme.Material.NoActionBar">
+              <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN"/>
                   <category android:name="android.intent.category.LAUNCHER"/>
@@ -65,7 +66,10 @@ jobs:
           import android.content.Intent;
           import android.net.Uri;
           import android.os.Bundle;
+          import android.util.Base64;
           import android.webkit.*;
+          import java.io.*;
+          import java.net.*;
 
           public class MainActivity extends Activity {
             WebView w;
@@ -94,6 +98,7 @@ jobs:
                   return true;
                 }
               });
+              w.addJavascriptInterface(new Bridge(), "Android");
               w.loadUrl("file:///android_asset/index.html");
             }
 
@@ -114,6 +119,65 @@ jobs:
             }
 
             public void onBackPressed() { moveTaskToBack(true); }
+
+            class Bridge {
+              @JavascriptInterface
+              public void get(final String url, final String id) {
+                new Thread(() -> {
+                  String r;
+                  try {
+                    String u = url;
+                    HttpURLConnection c;
+                    int hops = 0;
+                    while (true) {
+                      c = (HttpURLConnection) new URL(u).openConnection();
+                      c.setInstanceFollowRedirects(false);
+                      c.setConnectTimeout(15000);
+                      c.setReadTimeout(30000);
+                      c.setRequestProperty("User-Agent", "Mozilla/5.0 GengarMusic");
+                      int code = c.getResponseCode();
+                      if (code >= 300 && code < 400 && hops++ < 6) {
+                        u = new URL(new URL(u), c.getHeaderField("Location")).toString();
+                        continue;
+                      }
+                      if (code != 200) throw new Exception("HTTP " + code);
+                      break;
+                    }
+                    String ct = c.getContentType();
+                    if (ct != null && ct.startsWith("text/")) throw new Exception("O link nao e de um arquivo de audio");
+                    long t = 0;
+                    try (InputStream in = c.getInputStream(); FileOutputStream o = new FileOutputStream(new File(getCacheDir(), id))) {
+                      byte[] buf = new byte[65536];
+                      int n;
+                      while ((n = in.read(buf)) > 0) { o.write(buf, 0, n); t += n; }
+                    }
+                    String type = ct == null ? "audio/mpeg" : ct.split(";")[0].trim();
+                    r = "{\"ok\":true,\"size\":" + t + ",\"type\":\"" + type + "\"}";
+                  } catch (Exception e) {
+                    String m = String.valueOf(e.getMessage()).replace("\\", "/").replace("\"", "'").replace("\n", " ");
+                    r = "{\"ok\":false,\"err\":\"" + m + "\"}";
+                  }
+                  final String js = "gmDone('" + id + "'," + r + ")";
+                  runOnUiThread(() -> w.evaluateJavascript(js, null));
+                }).start();
+              }
+
+              @JavascriptInterface
+              public String chunk(String id, int off, int len) {
+                try (RandomAccessFile f = new RandomAccessFile(new File(getCacheDir(), id), "r")) {
+                  f.seek(off);
+                  byte[] b = new byte[len];
+                  int n = f.read(b);
+                  if (n <= 0) return "";
+                  return Base64.encodeToString(b, 0, n, Base64.NO_WRAP);
+                } catch (Exception e) {
+                  return "";
+                }
+              }
+
+              @JavascriptInterface
+              public void del(String id) { new File(getCacheDir(), id).delete(); }
+            }
           }
           EOF
           cat > app/src/main/assets/index.html <<'EOF'
@@ -152,12 +216,13 @@ jobs:
           .tr,.empty{color:var(--dim);font-size:13px;width:100%}
           small{pointer-events:none;color:var(--dim)}
           .fence{height:70px;margin:28px -16px 0;background:repeating-linear-gradient(90deg,#000 0 7px,transparent 7px 20px),linear-gradient(#0000,#6b3fd4aa)}
+          .mk select{margin-bottom:12px}
           .fl{animation:fl 3s ease-in-out infinite alternate}@keyframes fl{to{transform:translateY(-8px)}}
           @media(prefers-reduced-motion:reduce){.fl{animation:none}}
           </style></head><body>
           <header class="hero"><div class="moon"></div>
           <svg class="art" viewBox="0 0 300 230" role="img" aria-label="Gengar e Gastly">
-          <defs><symbol id="f" viewBox="0 0 30 50"><path d="M12 46C-4 36 8 22 14 6c2 12 16 16 12 30-2 8-8 12-14 10z" fill="#d94fd8"/></symbol></defs>
+          <defs><symbol id="flame" viewBox="0 0 30 50"><path d="M12 46C-4 36 8 22 14 6c2 12 16 16 12 30-2 8-8 12-14 10z" fill="#d94fd8"/></symbol></defs>
           <path d="M40 120C20 80 60 40 90 56 110 20 170 24 196 52c40-14 76 30 58 72 20 30-6 80-50 76-20 24-84 28-110 6-34 6-60-20-54-52z" fill="#7b4be0" opacity=".85"/>
           <g fill="#7b4be0"><circle cx="30" cy="70" r="5"/><circle cx="272" cy="60" r="4"/><circle cx="264" cy="200" r="6"/><circle cx="14" cy="176" r="3"/></g>
           <path d="M80 70L100 20l28 42q22-7 44 0l28-42 20 50q25 40 5 80-75 45-150 0-20-40 5-80z" fill="#2a1650" stroke="#0c0618" stroke-width="3"/>
@@ -166,7 +231,7 @@ jobs:
           <path d="M120 142v30M150 146v32M180 142v30" stroke="#2a1650" stroke-width="3"/>
           <circle cx="56" cy="164" r="30" fill="#120a26" stroke="#7b4be0" stroke-width="3"/>
           <path d="M38 152l18 10-10 8zM74 152l-18 10 10 8z" fill="#fff"/><path d="M44 180q12 7 24 0" stroke="#e8265a" stroke-width="4" fill="none"/>
-          <use href="#f" class="fl" x="14" y="14" width="26" height="42"/><use href="#f" class="fl" x="246" y="10" width="22" height="36"/><use href="#f" class="fl" x="214" y="170" width="24" height="40"/>
+          <use href="#flame" class="fl" x="14" y="14" width="26" height="42"/><use href="#flame" class="fl" x="246" y="10" width="22" height="36"/><use href="#flame" class="fl" x="214" y="170" width="24" height="40"/>
           </svg>
           <h1>ゲンガー</h1><p>Gengar Music</p></header>
           <section class="card"><span class="tag">#094</span>
@@ -175,21 +240,26 @@ jobs:
           <div class="tm"><span id="c">0:00</span><span id="d">0:00</span></div>
           <div class="ctl"><button id="sh" aria-label="Aleatório">⇄</button><button id="pv" aria-label="Anterior">⏮</button><button id="pl" class="big" aria-label="Tocar">▶</button><button id="nx" aria-label="Próxima">⏭</button><button id="rp" aria-label="Repetir">↻</button></div>
           <audio id="au"></audio></section>
-          <nav><button class="on" data-v="s">Músicas</button><button data-v="l">Playlists</button></nav>
+          <nav><button class="on" data-v="s">Músicas</button><button data-v="l">Playlists</button><button data-v="dw">Baixar</button></nav>
           <main id="s"><label class="add">Adicionar músicas<input type="file" id="f" accept="audio/*" multiple hidden></label><ul id="sl"></ul></main>
           <main id="l" hidden><div class="mk"><input id="pn" placeholder="Nome da playlist"><button id="pc">Criar</button></div><ul id="ll"></ul></main>
+          <main id="dw" hidden>
+          <div class="mk"><input id="dlk" placeholder="Link direto de um mp3"><button id="dgo">Baixar</button></div>
+          <div class="mk"><input id="dq" placeholder="Buscar música grátis"><select id="dso"><option value="a">Audius</option><option value="j">Jamendo</option></select><button id="dbs">Buscar</button></div>
+          <div class="mk"><input id="djk" placeholder="Chave do Jamendo (só para Jamendo)"></div>
+          <div id="dst" class="sub"></div><ul id="dres"></ul></main>
           <div class="fence"></div>
           <script>
           const $=i=>document.getElementById(i),au=$('au'),B={};
           let S={songs:[],lists:[]},Q=[],qi=-1,sh=0,rp=0,db;
           try{S=JSON.parse(localStorage.gm)}catch(e){}
           const save=()=>{try{localStorage.gm=JSON.stringify(S)}catch(e){}};
-          const esc=s=>s.replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
+          const esc=s=>String(s).replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
           const fm=s=>isFinite(s)?Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'):'0:00';
           try{const o=indexedDB.open('gm',1);o.onupgradeneeded=()=>o.result.createObjectStore('b');o.onsuccess=()=>{db=o.result}}catch(e){}
           const put=(id,b)=>{B[id]=b;try{db.transaction('b','readwrite').objectStore('b').put(b,id)}catch(e){}};
           const get=id=>B[id]?Promise.resolve(B[id]):new Promise(r=>{try{const q=db.transaction('b').objectStore('b').get(id);q.onsuccess=()=>r(q.result);q.onerror=()=>r()}catch(e){r()}});
-          $('f').onchange=e=>{for(const f of e.target.files){const id=Date.now()+Math.random().toString(36).slice(2,6);put(id,f);S.songs.push({id,n:f.name.replace(/\.[^.]+$/,'')})}save();draw();e.target.value=''};
+          $('f').onchange=e=>{for(const f of e.target.files){const id=Date.now()+Math.random().toString(36).slice(2,6);put(id,f);S.songs.push({id,n:f.name.replace(/\.[^.]+$/,'')})}const n=e.target.files.length;save();draw();$('a').textContent=n+(n>1?' músicas adicionadas':' música adicionada');e.target.value=''};
           async function play(i,q){if(q)Q=q;qi=i;const id=Q[i],s=S.songs.find(x=>x.id==id),b=await get(id);if(!s||!b){$('a').textContent='Arquivo não encontrado. Adicione a música de novo.';return}au.src=URL.createObjectURL(b);au.play();$('t').textContent=s.n;$('a').textContent='Gengar Music';draw()}
           const step=d=>{if(Q.length)play(sh?Math.floor(Math.random()*Q.length):(qi+d+Q.length)%Q.length)};
           $('pl').onclick=()=>au.src?(au.paused?au.play():au.pause()):S.songs.length&&play(0,S.songs.map(x=>x.id));
@@ -200,13 +270,29 @@ jobs:
           au.onended=()=>(qi<Q.length-1||sh||rp)&&step(1);
           au.ontimeupdate=()=>{$('c').textContent=fm(au.currentTime);$('d').textContent=fm(au.duration);$('p').value=au.duration?au.currentTime/au.duration*1000:0};
           $('p').oninput=e=>au.duration&&(au.currentTime=e.target.value/1000*au.duration);
-          document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));$('s').hidden=b.dataset.v!='s';$('l').hidden=b.dataset.v!='l'});
+          document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));$('s').hidden=b.dataset.v!='s';$('l').hidden=b.dataset.v!='l';$('dw').hidden=b.dataset.v!='dw'});
           $('pc').onclick=()=>{const n=$('pn').value.trim();if(n){S.lists.push({n,ids:[]});$('pn').value='';save();draw()}};
-          document.onclick=e=>{const t=e.target;if(t.dataset.p)play(+t.dataset.p,S.songs.map(x=>x.id));if(t.dataset.l){const l=S.lists[t.dataset.l];if(l.ids.length)play(0,[...l.ids])}};
+          document.onclick=e=>{const t=e.target;if(t.dataset.p)play(+t.dataset.p,S.songs.map(x=>x.id));if(t.dataset.r){const x=RES[t.dataset.r];x.save?dl(x.u,x.n+' - '+(x.by||'')):playUrl(x.u,x.n)}if(t.dataset.l){const l=S.lists[t.dataset.l];if(l.ids.length)play(0,[...l.ids])}};
           document.onchange=e=>{const t=e.target;if(t.dataset.a&&t.value!==''){const l=S.lists[t.value];if(!l.ids.includes(t.dataset.a))l.ids.push(t.dataset.a);save();draw()}};
           function draw(){const cur=Q[qi],nm=id=>(S.songs.find(x=>x.id==id)||{n:'?'}).n;
           $('sl').innerHTML=S.songs.length?S.songs.map((s,i)=>`<li class="${s.id==cur?'now':''}"><button class="nm" data-p="${i}">${esc(s.n)}</button><select data-a="${s.id}"><option value="">＋ playlist</option>${S.lists.map((l,j)=>`<option value="${j}">${esc(l.n)}</option>`).join('')}</select></li>`).join(''):'<li class="empty">Nenhuma música ainda. Toque em Adicionar músicas e escolha arquivos do celular.</li>';
           $('ll').innerHTML=S.lists.length?S.lists.map((l,j)=>`<li><b class="nm">${esc(l.n)}</b><button class="go" data-l="${j}">Tocar</button><div class="tr">${l.ids.length?esc(l.ids.map(nm).join(', ')):'Vazia. Use ＋ playlist na aba Músicas.'}</div></li>`).join(''):'<li class="empty">Crie sua primeira playlist.</li>'}
+          let RES=[],jid=0;const pend={},st=t=>{$('dst').textContent=t};
+          try{$('djk').value=localStorage.jk||''}catch(e){}
+          function playUrl(u,n){Q=[];qi=-1;au.src=u;au.play();$('t').textContent=n;$('a').textContent='Ouvindo online';draw()}
+          function dl(u,n){const id='d'+(++jid)+Date.now();pend[id]=n;st('Baixando '+n+'...');Android.get(u,id)}
+          function gmDone(id,r){const n=pend[id];delete pend[id];if(!r.ok){st('Erro: '+r.err);return}
+          st('Salvando...');let off=0;const P=[],L=393216;
+          (function nx(){const s=Android.chunk(id,off,L);if(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);P.push(u);off+=b.length;if(off<r.size)return setTimeout(nx,0)}
+          Android.del(id);if(!off){st('Erro ao salvar o arquivo');return}
+          const sid=Date.now()+Math.random().toString(36).slice(2,6);put(sid,new Blob(P,{type:/^audio/.test(r.type)?r.type:'audio/mpeg'}));S.songs.push({id:sid,n});save();draw();st('Pronto: '+n+' (aba Músicas)')})()}
+          $('dgo').onclick=()=>{const u=$('dlk').value.trim();if(!/^https?:\/\//i.test(u)){st('Cole um link que comece com http');return}let n='Música';try{n=decodeURIComponent(u.split('?')[0].split('/').pop()).replace(/\.[^.]+$/,'')||n}catch(e){}dl(u,n)};
+          $('dbs').onclick=async()=>{const q=$('dq').value.trim(),j=$('djk').value.trim();if(!q)return;try{localStorage.jk=j}catch(e){}st('Buscando...');$('dres').innerHTML='';
+          try{let R=[];
+          if($('dso').value=='a'){const r=await(await fetch('https://api.audius.co/v1/tracks/search?limit=15&app_name=GengarMusic&query='+encodeURIComponent(q))).json();R=(r.data||[]).map(t=>({n:t.title,by:t.user&&t.user.name,u:'https://api.audius.co/v1/tracks/'+t.id+'/stream?app_name=GengarMusic'}))}
+          else{if(!j){st('Cole sua chave (client_id) do Jamendo.');return}const r=await(await fetch('https://api.jamendo.com/v3.0/tracks/?format=json&limit=15&audiodlformat=mp32&client_id='+encodeURIComponent(j)+'&search='+encodeURIComponent(q))).json();R=(r.results||[]).filter(t=>t.audiodownload_allowed&&t.audiodownload).map(t=>({n:t.name,by:t.artist_name,u:t.audiodownload,save:1}))}
+          RES=R;st(R.length?R.length+' resultados':'Nada encontrado.');
+          $('dres').innerHTML=R.map((t,i)=>`<li><span class="nm">${esc(t.n||'')}<small> ${esc(t.by||'')}</small></span><button class="go" data-r="${i}">${t.save?'Baixar':'Ouvir'}</button></li>`).join('')}catch(e){st('Erro na busca. Confira a internet e a chave.')}};
           draw();
           </script></body></html>
           EOF
