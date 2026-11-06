@@ -1,0 +1,125 @@
+# Gengar Music: este arquivo cria o app Android inteiro e compila o APK.
+# Salve em .github/workflows/compilar.yml, confirme e abra a aba Actions.
+name: Compilar Gengar Music
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Criar o projeto Android
+        run: |
+          mkdir -p app/src/main/assets app/src/main/java/com/gengar/music app/src/main/res/drawable
+          cat > settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositories { google(); mavenCentral() } }
+          rootProject.name = 'GengarMusic'
+          include ':app'
+          EOF
+          cat > build.gradle <<'EOF'
+          plugins { id 'com.android.application' version '8.5.2' apply false }
+          EOF
+          cat > app/build.gradle <<'EOF'
+          plugins { id 'com.android.application' }
+          android {
+            namespace 'com.gengar.music'
+            compileSdk 34
+            defaultConfig { applicationId 'com.gengar.music'; minSdk 24; targetSdk 34; versionCode 1; versionName '1.0' }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+          }
+          EOF
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <application android:label="Gengar Music" android:icon="@drawable/ic" android:theme="@android:style/Theme.Material.NoActionBar">
+              <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOF
+          cat > app/src/main/res/drawable/ic.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+            <path android:fillColor="#0A0614" android:pathData="M0,0h108v108h-108z"/>
+            <path android:fillColor="#6B3FD4" android:pathData="M22,40L30,14L46,34Q54,32 62,34L78,14L86,40Q96,60 84,76Q54,96 24,76Q12,60 22,40Z"/>
+            <path android:fillColor="#E8265A" android:pathData="M34,50L50,56L44,64ZM74,50L58,56L64,64Z"/>
+            <path android:fillColor="#FFFFFF" android:pathData="M30,66Q54,78 78,66Q74,86 54,88Q34,86 30,66Z"/>
+          </vector>
+          EOF
+          cat > app/src/main/java/com/gengar/music/MainActivity.java <<'EOF'
+          package com.gengar.music;
+
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.net.Uri;
+          import android.os.Bundle;
+          import android.webkit.*;
+
+          public class MainActivity extends Activity {
+            WebView w;
+            ValueCallback<Uri[]> cb;
+
+            protected void onCreate(Bundle b) {
+              super.onCreate(b);
+              getWindow().setStatusBarColor(0xFF05030A);
+              getWindow().setNavigationBarColor(0xFF05030A);
+              w = new WebView(this);
+              w.setBackgroundColor(0xFF05030A);
+              setContentView(w);
+              WebSettings s = w.getSettings();
+              s.setJavaScriptEnabled(true);
+              s.setDomStorageEnabled(true);
+              s.setMediaPlaybackRequiresUserGesture(false);
+              w.setWebChromeClient(new WebChromeClient() {
+                public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> c, FileChooserParams p) {
+                  if (cb != null) cb.onReceiveValue(null);
+                  cb = c;
+                  Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                  i.addCategory(Intent.CATEGORY_OPENABLE);
+                  i.setType("audio/*");
+                  i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                  startActivityForResult(i, 1);
+                  return true;
+                }
+              });
+              w.loadUrl("file:///android_asset/index.html");
+            }
+
+            protected void onActivityResult(int r, int c, Intent d) {
+              if (cb == null) return;
+              Uri[] u = null;
+              if (c == RESULT_OK && d != null) {
+                if (d.getClipData() != null) {
+                  int n = d.getClipData().getItemCount();
+                  u = new Uri[n];
+                  for (int k = 0; k < n; k++) u[k] = d.getClipData().getItemAt(k).getUri();
+                } else if (d.getData() != null) {
+                  u = new Uri[]{d.getData()};
+                }
+              }
+              cb.onReceiveValue(u);
+              cb = null;
+            }
+
+            public void onBackPressed() { moveTaskToBack(true); }
+          }
+          EOF
+          cat > app/src/main/assets/index.html <<'EOF'
+          <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Gengar Music</title>
+          <style>
+          :root{--bg:#05030a;--navy:#17124a;--pur:#8a5cff;--mag:#d94fd8;--red:#e8265a;--ink:#f3ecff;--dim:#9b8fc4}
+          *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+          body{background:var(--bg);color:var(--ink);font:16px/1.4 "Trebuchet MS",system-ui,sans-serif;min-height:100vh;padding:8px 16px 0;overflow-x:hidden;background-image:radial-gradient(1.5px 1.5px at 12% 8%,#fff,transparent),radial-gradient(1px 1px at 80% 14%,#fff,transparent),radial-gradient(2px 2px at 40% 30%,#cdbbff,transparent),radial-gradient(1px 1px at 90% 45%,#fff,transparent),radial-gradient(1.5px 1.5px at 18% 62%,#fff,transparent),radial-gradient(1px 1px at 66% 78%,#fff,transparent),linear-gradient(#1a0b3a 0,var(--bg) 360px)}
+          .hero{position:relative;text-align:center;p
