@@ -16,8 +16,48 @@ jobs:
       - name: Criar projeto
         run: |
           set -e
-          mkdir -p gm/app/src/main/java/com/gengar/music gm/app/src/main/res/drawable gm/app/src/main/assets
+          mkdir -p gm/app/src/main/java/com/gengar/music gm/app/src/main/res/drawable gm/app/src/main/res/mipmap-anydpi gm/app/src/main/res/mipmap-anydpi-v26 gm/app/src/main/assets
           cd gm
+          base64 -d > app/gm.keystore <<'EOF'
+          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
+          fzD2wMUyjEnOTg==
+          EOF
           cat > settings.gradle <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement { repositories { google(); mavenCentral() } }
@@ -39,8 +79,16 @@ jobs:
               applicationId 'com.gengar.music'
               minSdk 24
               targetSdk 34
-              versionCode 2
-              versionName '2.0'
+              versionCode 3
+              versionName '2.1'
+            }
+            signingConfigs {
+              debug {
+                storeFile file('gm.keystore')
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+              }
             }
           }
           EOF
@@ -52,7 +100,7 @@ jobs:
             <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
             <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
             <uses-permission android:name="android.permission.WAKE_LOCK"/>
-            <application android:label="Gengar Music" android:icon="@drawable/ic" android:usesCleartextTraffic="true" android:theme="@android:style/Theme.Material.NoActionBar">
+            <application android:label="Gengar Music" android:icon="@mipmap/ic_launcher" android:usesCleartextTraffic="true" android:theme="@android:style/Theme.Material.NoActionBar">
               <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN"/>
@@ -63,12 +111,42 @@ jobs:
             </application>
           </manifest>
           EOF
-          cat > app/src/main/res/drawable/ic.xml <<'EOF'
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+            <background android:drawable="@drawable/ic_bg"/>
+            <foreground android:drawable="@drawable/ic_fg"/>
+          </adaptive-icon>
+          EOF
+          cat > app/src/main/res/mipmap-anydpi/ic_launcher.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+            <item android:drawable="@drawable/ic_bg"/>
+            <item android:drawable="@drawable/ic_fg"/>
+          </layer-list>
+          EOF
+          cat > app/src/main/res/drawable/ic_bg.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+            <path android:pathData="M0,0h108v108h-108z">
+              <aapt:attr name="android:fillColor">
+                <gradient android:type="radial" android:centerX="54" android:centerY="58" android:gradientRadius="80">
+                  <item android:offset="0" android:color="#FF3B1783"/>
+                  <item android:offset="1" android:color="#FF06030E"/>
+                </gradient>
+              </aapt:attr>
+            </path>
+            <path android:fillColor="#FFFFFFFF" android:pathData="M16.7,20a1.3,1.3 0 1,0 2.6,0a1.3,1.3 0 1,0 -2.6,0z M88.8,14a1.2,1.2 0 1,0 2.4,0a1.2,1.2 0 1,0 -2.4,0z M94,62a1,1 0 1,0 2,0a1,1 0 1,0 -2,0z M10.8,72a1.2,1.2 0 1,0 2.4,0a1.2,1.2 0 1,0 -2.4,0z M83,97a1,1 0 1,0 2,0a1,1 0 1,0 -2,0z"/>
+          </vector>
+          EOF
+          cat > app/src/main/res/drawable/ic_fg.xml <<'EOF'
           <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-            <path android:fillColor="#1A0B3A" android:pathData="M0,0h108v108h-108z"/>
-            <path android:fillColor="#7B4BE0" android:pathData="M24,70 C14,48 30,26 54,30 78,26 94,48 84,70 78,86 30,86 24,70z"/>
-            <path android:fillColor="#E8265A" android:pathData="M36,48 L52,56 L44,62z M72,48 L56,56 L64,62z"/>
-            <path android:fillColor="#FFFFFF" android:pathData="M38,68 Q54,78 70,68 Q68,82 54,84 Q40,82 38,68z"/>
+            <group android:scaleX="0.84" android:scaleY="0.84" android:pivotX="54" android:pivotY="56">
+              <path android:fillColor="#557B4BE0" android:pathData="M18,58a36,36 0 1,0 72,0a36,36 0 1,0 -72,0z"/>
+              <path android:fillColor="#FF1E0F3F" android:strokeColor="#FF9A6BFF" android:strokeWidth="1.8" android:strokeLineJoin="round" android:pathData="M26,52 L32,24 L46,42 Q54,40 62,42 L76,24 L82,52 Q92,70 84,84 Q54,98 24,84 Q16,70 26,52z"/>
+              <path android:fillColor="#FFFF2D6F" android:pathData="M33,55 L51,62 L44,69z M75,55 L57,62 L64,69z"/>
+              <path android:fillColor="#FFFFFFFF" android:pathData="M32,70 Q54,82 76,70 Q74,86 54,88 Q34,86 32,70z"/>
+              <path android:strokeColor="#FF1E0F3F" android:strokeWidth="1.6" android:pathData="M43,76.5 L43,87 M54,79 L54,88 M65,76.5 L65,87"/>
+            </group>
           </vector>
           EOF
           cat > app/src/main/res/drawable/ic_notif.xml <<'EOF'
@@ -445,14 +523,15 @@ jobs:
           .ctl button{font-size:22px;width:42px;height:42px;border-radius:50%;color:var(--dim)}
           .ctl .on{color:var(--mag)}
           .ctl .big{background:var(--red);color:#fff;width:60px;height:60px;font-size:26px;box-shadow:0 0 24px rgba(232,38,90,.5)}
-          nav{display:flex;gap:8px;margin-bottom:12px}
-          nav button{flex:1;padding:10px 2px;font-size:14px;border-radius:12px;background:var(--navy);color:var(--dim)}
+          nav{display:flex;gap:6px;margin-bottom:12px}
+          nav button{flex:1;padding:10px 0;font-size:13px;border-radius:12px;background:var(--navy);color:var(--dim)}
           nav .on{background:var(--pur);color:#fff}
           .add,.mk button,.go{display:block;text-align:center;padding:12px;border-radius:12px;background:var(--mag);color:#1a0626;font-weight:700;margin-bottom:12px}
           ul{list-style:none}
           li{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;margin-bottom:6px;border-radius:12px;background:rgba(23,18,74,.6)}
           li.now{outline:2px solid var(--red)}
           .nm{flex:1;min-width:0;text-align:left;padding:6px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+          .hb{color:var(--mag);font-size:22px;padding:2px 6px}
           select{max-width:110px;background:var(--bg);color:var(--dim);border:1px solid var(--pur);border-radius:8px;padding:6px}
           .mk{display:flex;gap:8px}
           .mk input{flex:1;min-width:0;padding:12px;border-radius:12px;border:1px solid var(--pur);background:var(--bg);color:var(--ink)}
@@ -486,7 +565,7 @@ jobs:
           <div class="tm"><span id="c">0:00</span><span id="d">0:00</span></div>
           <div class="ctl"><button id="sh" aria-label="Aleatório">⇄</button><button id="pv" aria-label="Anterior">⏮</button><button id="pl" class="big" aria-label="Tocar">▶</button><button id="nx" aria-label="Próxima">⏭</button><button id="fv" aria-label="Curtir">♡</button><button id="rp" aria-label="Repetir">↻</button></div>
           <audio id="au"></audio></section>
-          <nav><button class="on" data-v="s">Músicas</button><button data-v="l">Playlists</button><button data-v="dw">Baixar</button><button data-v="hs">Histórico</button></nav>
+          <nav><button class="on" data-v="s">Músicas</button><button data-v="l">Playlists</button><button data-v="dw">Baixar</button><button data-v="hs">Histórico</button><button data-v="fa" aria-label="Favoritas" style="flex:0 0 44px">♥</button></nav>
           <main id="s"><label class="add">Adicionar músicas<input type="file" id="f" accept="audio/*" multiple hidden></label><ul id="sl"></ul></main>
           <main id="l" hidden><div class="mk"><input id="pn" placeholder="Nome da playlist"><button id="pc">Criar</button></div><ul id="ll"></ul></main>
           <main id="dw" hidden>
@@ -495,6 +574,7 @@ jobs:
           <div class="mk"><input id="djk" placeholder="Chave do Jamendo (só para Jamendo)"></div>
           <div id="dst" class="sub"></div><ul id="dres"></ul></main>
           <main id="hs" hidden><button class="add" id="hc" style="width:100%">Limpar histórico</button><ul id="hl"></ul></main>
+          <main id="fa" hidden><button class="add" id="fpa" style="width:100%">Tocar todas</button><ul id="fl"></ul></main>
           <div class="fence"></div>
           <script>
           const $=i=>document.getElementById(i),au=$('au'),B={};
@@ -507,7 +587,9 @@ jobs:
           const put=(id,b)=>{B[id]=b;try{db.transaction('b','readwrite').objectStore('b').put(b,id)}catch(e){}};
           const get=id=>B[id]?Promise.resolve(B[id]):new Promise(r=>{try{const q=db.transaction('b').objectStore('b').get(id);q.onsuccess=()=>r(q.result);q.onerror=()=>r()}catch(e){r()}});
           const ms=()=>{try{const s=S.songs.find(x=>x.id==Q[qi]);Android.media(s?(s.t||s.n):$('t').textContent,(s&&s.by)||'Gengar Music',!au.paused,Math.round((au.currentTime||0)*1000),Math.round((isFinite(au.duration)?au.duration:0)*1000),!!sh,!!(s&&S.fav.includes(s.id)))}catch(e){}};
-          const fav=()=>{const id=Q[qi];if(id==null)return;const i=S.fav.indexOf(id);i<0?S.fav.push(id):S.fav.splice(i,1);save();draw();ms()};
+          const FV=()=>S.fav.filter(i=>S.songs.some(x=>x.id==i));
+          const tf=id=>{if(id==null)return;const i=S.fav.indexOf(id);i<0?S.fav.push(id):S.fav.splice(i,1);save();draw();ms()};
+          const fav=()=>tf(Q[qi]);
           function sendArt(){try{const x=new XMLSerializer().serializeToString(document.querySelector('.art')).replace('<svg ','<svg width="960" height="736" '),im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=512;const g=c.getContext('2d'),r=g.createLinearGradient(0,0,0,512);r.addColorStop(0,'#2a1060');r.addColorStop(1,'#05030a');g.fillStyle=r;g.fillRect(0,0,512,512);g.drawImage(im,16,104,480,368);Android.art(c.toDataURL('image/jpeg',.85).split(',')[1])};im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x)}catch(e){}}
           window.gmCmd=c=>{if(c=='play'){au.src?au.play():$('pl').click()}else if(c=='pause')au.pause();else if(c=='next')step(1);else if(c=='prev')step(-1);else if(c=='fav')fav();else if(c=='shuf')$('sh').click();else if(c.indexOf('seek:')==0)au.currentTime=+c.slice(5)/1000};
           $('f').onchange=e=>{for(const f of e.target.files){const id=Date.now()+Math.random().toString(36).slice(2,6);put(id,f);S.songs.push({id,n:f.name.replace(/\.[^.]+$/,'')})}const n=e.target.files.length;save();draw();$('a').textContent=n+(n>1?' músicas adicionadas':' música adicionada');e.target.value=''};
@@ -515,6 +597,7 @@ jobs:
           const step=d=>{if(Q.length)play(sh?Math.floor(Math.random()*Q.length):(qi+d+Q.length)%Q.length)};
           $('pl').onclick=()=>au.src?(au.paused?au.play():au.pause()):S.songs.length&&play(0,S.songs.map(x=>x.id));
           $('nx').onclick=()=>step(1);$('pv').onclick=()=>step(-1);$('fv').onclick=fav;
+          $('fpa').onclick=()=>{const v=FV();if(v.length)play(0,v)};
           $('sh').onclick=e=>{e.currentTarget.classList.toggle('on',sh=!sh);ms()};
           $('rp').onclick=e=>e.currentTarget.classList.toggle('on',rp=!rp);
           au.onplay=au.onpause=()=>{$('pl').textContent=au.paused?'▶':'⏸';ms()};
@@ -522,14 +605,15 @@ jobs:
           au.onended=()=>(qi<Q.length-1||sh||rp)&&step(1);
           au.ontimeupdate=()=>{$('c').textContent=fm(au.currentTime);$('d').textContent=fm(au.duration);$('p').value=au.duration?au.currentTime/au.duration*1000:0};
           $('p').oninput=e=>au.duration&&(au.currentTime=e.target.value/1000*au.duration);
-          document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));$('s').hidden=b.dataset.v!='s';$('l').hidden=b.dataset.v!='l';$('dw').hidden=b.dataset.v!='dw';$('hs').hidden=b.dataset.v!='hs'});
+          document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));$('s').hidden=b.dataset.v!='s';$('l').hidden=b.dataset.v!='l';$('dw').hidden=b.dataset.v!='dw';$('hs').hidden=b.dataset.v!='hs';$('fa').hidden=b.dataset.v!='fa'});
           $('pc').onclick=()=>{const n=$('pn').value.trim();if(n){S.lists.push({n,ids:[]});$('pn').value='';save();draw()}};
-          document.onclick=e=>{const t=e.target;if(t.dataset.p)play(+t.dataset.p,S.songs.map(x=>x.id));if(t.dataset.fv){const ids=S.fav.filter(i=>S.songs.some(x=>x.id==i));if(ids.length)play(0,ids)}if(t.dataset.r){const x=RES[t.dataset.r];x.save?dl(x.u,x.n,x.by):playUrl(x.u,x.n)}if(t.dataset.pi){const[j,i]=t.dataset.pi.split(',');play(+i,[...S.lists[j].ids])}if(t.dataset.rm){const[j,i]=t.dataset.rm.split(',');S.lists[j].ids.splice(+i,1);save();draw()}if(t.dataset.hp)play(+t.dataset.hp,S.hist.filter(i=>S.songs.some(x=>x.id==i)));if(t.dataset.x!==undefined){if(t.textContent=='Apagar'){t.textContent='Tem certeza?';setTimeout(draw,3000)}else{S.lists.splice(+t.dataset.x,1);save();draw()}}if(t.dataset.ds!==undefined){if(t.textContent=='✕'){t.textContent='Apagar?';setTimeout(draw,3000)}else delSong(S.songs[+t.dataset.ds].id)}if(t.dataset.l){const l=S.lists[t.dataset.l];if(l.ids.length)play(0,[...l.ids])}};
+          document.onclick=e=>{const t=e.target;if(t.dataset.p)play(+t.dataset.p,S.songs.map(x=>x.id));if(t.dataset.fs!==undefined)tf(S.songs[+t.dataset.fs].id);if(t.dataset.fp!==undefined)play(+t.dataset.fp,FV());if(t.dataset.fr!==undefined)tf(FV()[+t.dataset.fr]);if(t.dataset.r){const x=RES[t.dataset.r];x.save?dl(x.u,x.n,x.by):playUrl(x.u,x.n)}if(t.dataset.pi){const[j,i]=t.dataset.pi.split(',');play(+i,[...S.lists[j].ids])}if(t.dataset.rm){const[j,i]=t.dataset.rm.split(',');S.lists[j].ids.splice(+i,1);save();draw()}if(t.dataset.hp)play(+t.dataset.hp,S.hist.filter(i=>S.songs.some(x=>x.id==i)));if(t.dataset.x!==undefined){if(t.textContent=='Apagar'){t.textContent='Tem certeza?';setTimeout(draw,3000)}else{S.lists.splice(+t.dataset.x,1);save();draw()}}if(t.dataset.ds!==undefined){if(t.textContent=='✕'){t.textContent='Apagar?';setTimeout(draw,3000)}else delSong(S.songs[+t.dataset.ds].id)}if(t.dataset.l){const l=S.lists[t.dataset.l];if(l.ids.length)play(0,[...l.ids])}};
           document.onchange=e=>{const t=e.target;if(t.dataset.a&&t.value!==''){const l=S.lists[t.value];if(!l.ids.includes(t.dataset.a))l.ids.push(t.dataset.a);save();draw()}};
           function draw(){const cur=Q[qi],nm=id=>(S.songs.find(x=>x.id==id)||{n:'?'}).n,lk=S.fav.includes(cur);
           $('fv').textContent=lk?'♥':'♡';$('fv').classList.toggle('on',lk);
-          $('sl').innerHTML=S.songs.length?S.songs.map((s,i)=>`<li class="${s.id==cur?'now':''}"><button class="nm" data-p="${i}">${S.fav.includes(s.id)?'♥ ':''}${esc(s.n)}</button><select data-a="${s.id}"><option value="">＋ playlist</option>${S.lists.map((l,j)=>`<option value="${j}">${esc(l.n)}</option>`).join('')}</select><button class="rm" data-ds="${i}">✕</button></li>`).join(''):'<li class="empty">Nenhuma música ainda. Toque em Adicionar músicas e escolha arquivos do celular.</li>';
-          $('ll').innerHTML='<li><b class="nm">♥ Favoritas</b><button class="go" data-fv="1">Tocar</button><div class="tr">'+S.fav.filter(i=>S.songs.some(x=>x.id==i)).length+' músicas</div></li>'+(S.lists.length?S.lists.map((l,j)=>`<li><b class="nm">${esc(l.n)}</b><button class="go" data-l="${j}">Tocar</button><button class="rm" data-x="${j}">Apagar</button><div class="tr">${l.ids.length?l.ids.map((id,i)=>`<div class="tk"><button class="nm" data-pi="${j},${i}">${esc(nm(id))}</button><button class="rm" data-rm="${j},${i}">✕</button></div>`).join(''):'Vazia. Use ＋ playlist na aba Músicas.'}</div></li>`).join(''):'<li class="empty">Crie sua primeira playlist.</li>');
+          $('sl').innerHTML=S.songs.length?S.songs.map((s,i)=>`<li class="${s.id==cur?'now':''}"><button class="nm" data-p="${i}">${esc(s.n)}</button><button class="hb" data-fs="${i}">${S.fav.includes(s.id)?'♥':'♡'}</button><select data-a="${s.id}"><option value="">＋ playlist</option>${S.lists.map((l,j)=>`<option value="${j}">${esc(l.n)}</option>`).join('')}</select><button class="rm" data-ds="${i}">✕</button></li>`).join(''):'<li class="empty">Nenhuma música ainda. Toque em Adicionar músicas e escolha arquivos do celular.</li>';
+          $('ll').innerHTML=S.lists.length?S.lists.map((l,j)=>`<li><b class="nm">${esc(l.n)}</b><button class="go" data-l="${j}">Tocar</button><button class="rm" data-x="${j}">Apagar</button><div class="tr">${l.ids.length?l.ids.map((id,i)=>`<div class="tk"><button class="nm" data-pi="${j},${i}">${esc(nm(id))}</button><button class="rm" data-rm="${j},${i}">✕</button></div>`).join(''):'Vazia. Use ＋ playlist na aba Músicas.'}</div></li>`).join(''):'<li class="empty">Crie sua primeira playlist.</li>';
+          const FI=FV();$('fl').innerHTML=FI.length?FI.map((id,i)=>`<li class="${id==cur?'now':''}"><button class="nm" data-fp="${i}">♥ ${esc(nm(id))}</button><button class="rm" data-fr="${i}">✕</button></li>`).join(''):'<li class="empty">Nenhuma favorita ainda. Toque no ♡ ao lado de uma música.</li>';
           const H=S.hist.filter(i=>S.songs.some(x=>x.id==i));$('hl').innerHTML=H.length?H.map((id,i)=>`<li><button class="nm" data-hp="${i}">${esc(nm(id))}</button></li>`).join(''):'<li class="empty">Nada ouvido ainda. As músicas que você tocar aparecem aqui.</li>'}
           function delSong(id){S.songs=S.songs.filter(x=>x.id!=id);S.fav=S.fav.filter(x=>x!=id);S.lists.forEach(l=>l.ids=l.ids.filter(x=>x!=id));S.hist=S.hist.filter(x=>x!=id);delete B[id];try{db.transaction('b','readwrite').objectStore('b').delete(id)}catch(e){}save();draw()}
           let RES=[],jid=0;const pend={},st=t=>{$('dst').textContent=t};
