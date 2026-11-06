@@ -202,7 +202,7 @@ jobs:
           .ctl .on{color:var(--mag)}
           .ctl .big{background:var(--red);color:#fff;width:64px;height:64px;font-size:28px;box-shadow:0 0 24px rgba(232,38,90,.5)}
           nav{display:flex;gap:8px;margin-bottom:12px}
-          nav button{flex:1;padding:10px;border-radius:12px;background:var(--navy);color:var(--dim)}
+          nav button{flex:1;padding:10px 2px;font-size:14px;border-radius:12px;background:var(--navy);color:var(--dim)}
           nav .on{background:var(--pur);color:#fff}
           .add,.mk button,.go{display:block;text-align:center;padding:12px;border-radius:12px;background:var(--mag);color:#1a0626;font-weight:700;margin-bottom:12px}
           ul{list-style:none}
@@ -217,6 +217,8 @@ jobs:
           small{pointer-events:none;color:var(--dim)}
           .fence{height:70px;margin:28px -16px 0;background:repeating-linear-gradient(90deg,#000 0 7px,transparent 7px 20px),linear-gradient(#0000,#6b3fd4aa)}
           .mk select{margin-bottom:12px}
+          .rm{color:var(--red);padding:6px 10px;font-size:14px;border-radius:8px;border:1px solid var(--red)}
+          .tk{display:flex;align-items:center;gap:8px;width:100%;margin-top:4px}
           .fl{animation:fl 3s ease-in-out infinite alternate}@keyframes fl{to{transform:translateY(-8px)}}
           @media(prefers-reduced-motion:reduce){.fl{animation:none}}
           </style></head><body>
@@ -240,7 +242,7 @@ jobs:
           <div class="tm"><span id="c">0:00</span><span id="d">0:00</span></div>
           <div class="ctl"><button id="sh" aria-label="Aleatório">⇄</button><button id="pv" aria-label="Anterior">⏮</button><button id="pl" class="big" aria-label="Tocar">▶</button><button id="nx" aria-label="Próxima">⏭</button><button id="rp" aria-label="Repetir">↻</button></div>
           <audio id="au"></audio></section>
-          <nav><button class="on" data-v="s">Músicas</button><button data-v="l">Playlists</button><button data-v="dw">Baixar</button></nav>
+          <nav><button class="on" data-v="s">Músicas</button><button data-v="l">Playlists</button><button data-v="dw">Baixar</button><button data-v="hs">Histórico</button></nav>
           <main id="s"><label class="add">Adicionar músicas<input type="file" id="f" accept="audio/*" multiple hidden></label><ul id="sl"></ul></main>
           <main id="l" hidden><div class="mk"><input id="pn" placeholder="Nome da playlist"><button id="pc">Criar</button></div><ul id="ll"></ul></main>
           <main id="dw" hidden>
@@ -248,11 +250,12 @@ jobs:
           <div class="mk"><input id="dq" placeholder="Buscar música grátis"><select id="dso"><option value="a">Audius</option><option value="j">Jamendo</option></select><button id="dbs">Buscar</button></div>
           <div class="mk"><input id="djk" placeholder="Chave do Jamendo (só para Jamendo)"></div>
           <div id="dst" class="sub"></div><ul id="dres"></ul></main>
+          <main id="hs" hidden><button class="add" id="hc" style="width:100%">Limpar histórico</button><ul id="hl"></ul></main>
           <div class="fence"></div>
           <script>
           const $=i=>document.getElementById(i),au=$('au'),B={};
           let S={songs:[],lists:[]},Q=[],qi=-1,sh=0,rp=0,db;
-          try{S=JSON.parse(localStorage.gm)}catch(e){}
+          try{S=JSON.parse(localStorage.gm)}catch(e){}S.hist=S.hist||[];
           const save=()=>{try{localStorage.gm=JSON.stringify(S)}catch(e){}};
           const esc=s=>String(s).replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
           const fm=s=>isFinite(s)?Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'):'0:00';
@@ -260,7 +263,7 @@ jobs:
           const put=(id,b)=>{B[id]=b;try{db.transaction('b','readwrite').objectStore('b').put(b,id)}catch(e){}};
           const get=id=>B[id]?Promise.resolve(B[id]):new Promise(r=>{try{const q=db.transaction('b').objectStore('b').get(id);q.onsuccess=()=>r(q.result);q.onerror=()=>r()}catch(e){r()}});
           $('f').onchange=e=>{for(const f of e.target.files){const id=Date.now()+Math.random().toString(36).slice(2,6);put(id,f);S.songs.push({id,n:f.name.replace(/\.[^.]+$/,'')})}const n=e.target.files.length;save();draw();$('a').textContent=n+(n>1?' músicas adicionadas':' música adicionada');e.target.value=''};
-          async function play(i,q){if(q)Q=q;qi=i;const id=Q[i],s=S.songs.find(x=>x.id==id),b=await get(id);if(!s||!b){$('a').textContent='Arquivo não encontrado. Adicione a música de novo.';return}au.src=URL.createObjectURL(b);au.play();$('t').textContent=s.n;$('a').textContent='Gengar Music';draw()}
+          async function play(i,q){if(q)Q=q;qi=i;const id=Q[i],s=S.songs.find(x=>x.id==id),b=await get(id);if(!s||!b){$('a').textContent='Arquivo não encontrado. Adicione a música de novo.';return}au.src=URL.createObjectURL(b);au.play();S.hist=[id,...S.hist.filter(x=>x!=id)].slice(0,50);save();$('t').textContent=s.n;$('a').textContent='Gengar Music';draw()}
           const step=d=>{if(Q.length)play(sh?Math.floor(Math.random()*Q.length):(qi+d+Q.length)%Q.length)};
           $('pl').onclick=()=>au.src?(au.paused?au.play():au.pause()):S.songs.length&&play(0,S.songs.map(x=>x.id));
           $('nx').onclick=()=>step(1);$('pv').onclick=()=>step(-1);
@@ -270,13 +273,15 @@ jobs:
           au.onended=()=>(qi<Q.length-1||sh||rp)&&step(1);
           au.ontimeupdate=()=>{$('c').textContent=fm(au.currentTime);$('d').textContent=fm(au.duration);$('p').value=au.duration?au.currentTime/au.duration*1000:0};
           $('p').oninput=e=>au.duration&&(au.currentTime=e.target.value/1000*au.duration);
-          document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));$('s').hidden=b.dataset.v!='s';$('l').hidden=b.dataset.v!='l';$('dw').hidden=b.dataset.v!='dw'});
+          document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));$('s').hidden=b.dataset.v!='s';$('l').hidden=b.dataset.v!='l';$('dw').hidden=b.dataset.v!='dw';$('hs').hidden=b.dataset.v!='hs'});
           $('pc').onclick=()=>{const n=$('pn').value.trim();if(n){S.lists.push({n,ids:[]});$('pn').value='';save();draw()}};
-          document.onclick=e=>{const t=e.target;if(t.dataset.p)play(+t.dataset.p,S.songs.map(x=>x.id));if(t.dataset.r){const x=RES[t.dataset.r];x.save?dl(x.u,x.n+' - '+(x.by||'')):playUrl(x.u,x.n)}if(t.dataset.l){const l=S.lists[t.dataset.l];if(l.ids.length)play(0,[...l.ids])}};
+          document.onclick=e=>{const t=e.target;if(t.dataset.p)play(+t.dataset.p,S.songs.map(x=>x.id));if(t.dataset.r){const x=RES[t.dataset.r];x.save?dl(x.u,x.n+' - '+(x.by||'')):playUrl(x.u,x.n)}if(t.dataset.pi){const[j,i]=t.dataset.pi.split(',');play(+i,[...S.lists[j].ids])}if(t.dataset.rm){const[j,i]=t.dataset.rm.split(',');S.lists[j].ids.splice(+i,1);save();draw()}if(t.dataset.hp)play(+t.dataset.hp,S.hist.filter(i=>S.songs.some(x=>x.id==i)));if(t.dataset.x!==undefined){if(t.textContent=='Apagar'){t.textContent='Tem certeza?';setTimeout(draw,3000)}else{S.lists.splice(+t.dataset.x,1);save();draw()}}if(t.dataset.ds!==undefined){if(t.textContent=='✕'){t.textContent='Apagar?';setTimeout(draw,3000)}else delSong(S.songs[+t.dataset.ds].id)}if(t.dataset.l){const l=S.lists[t.dataset.l];if(l.ids.length)play(0,[...l.ids])}};
           document.onchange=e=>{const t=e.target;if(t.dataset.a&&t.value!==''){const l=S.lists[t.value];if(!l.ids.includes(t.dataset.a))l.ids.push(t.dataset.a);save();draw()}};
           function draw(){const cur=Q[qi],nm=id=>(S.songs.find(x=>x.id==id)||{n:'?'}).n;
-          $('sl').innerHTML=S.songs.length?S.songs.map((s,i)=>`<li class="${s.id==cur?'now':''}"><button class="nm" data-p="${i}">${esc(s.n)}</button><select data-a="${s.id}"><option value="">＋ playlist</option>${S.lists.map((l,j)=>`<option value="${j}">${esc(l.n)}</option>`).join('')}</select></li>`).join(''):'<li class="empty">Nenhuma música ainda. Toque em Adicionar músicas e escolha arquivos do celular.</li>';
-          $('ll').innerHTML=S.lists.length?S.lists.map((l,j)=>`<li><b class="nm">${esc(l.n)}</b><button class="go" data-l="${j}">Tocar</button><div class="tr">${l.ids.length?esc(l.ids.map(nm).join(', ')):'Vazia. Use ＋ playlist na aba Músicas.'}</div></li>`).join(''):'<li class="empty">Crie sua primeira playlist.</li>'}
+          $('sl').innerHTML=S.songs.length?S.songs.map((s,i)=>`<li class="${s.id==cur?'now':''}"><button class="nm" data-p="${i}">${esc(s.n)}</button><select data-a="${s.id}"><option value="">＋ playlist</option>${S.lists.map((l,j)=>`<option value="${j}">${esc(l.n)}</option>`).join('')}</select><button class="rm" data-ds="${i}">✕</button></li>`).join(''):'<li class="empty">Nenhuma música ainda. Toque em Adicionar músicas e escolha arquivos do celular.</li>';
+          $('ll').innerHTML=S.lists.length?S.lists.map((l,j)=>`<li><b class="nm">${esc(l.n)}</b><button class="go" data-l="${j}">Tocar</button><button class="rm" data-x="${j}">Apagar</button><div class="tr">${l.ids.length?l.ids.map((id,i)=>`<div class="tk"><button class="nm" data-pi="${j},${i}">${esc(nm(id))}</button><button class="rm" data-rm="${j},${i}">✕</button></div>`).join(''):'Vazia. Use ＋ playlist na aba Músicas.'}</div></li>`).join(''):'<li class="empty">Crie sua primeira playlist.</li>';
+          const H=S.hist.filter(i=>S.songs.some(x=>x.id==i));$('hl').innerHTML=H.length?H.map((id,i)=>`<li><button class="nm" data-hp="${i}">${esc(nm(id))}</button></li>`).join(''):'<li class="empty">Nada ouvido ainda. As músicas que você tocar aparecem aqui.</li>'}
+          function delSong(id){S.songs=S.songs.filter(x=>x.id!=id);S.lists.forEach(l=>l.ids=l.ids.filter(x=>x!=id));S.hist=S.hist.filter(x=>x!=id);delete B[id];try{db.transaction('b','readwrite').objectStore('b').delete(id)}catch(e){}save();draw()}
           let RES=[],jid=0;const pend={},st=t=>{$('dst').textContent=t};
           try{$('djk').value=localStorage.jk||''}catch(e){}
           function playUrl(u,n){Q=[];qi=-1;au.src=u;au.play();$('t').textContent=n;$('a').textContent='Ouvindo online';draw()}
@@ -293,6 +298,7 @@ jobs:
           else{if(!j){st('Cole sua chave (client_id) do Jamendo.');return}const r=await(await fetch('https://api.jamendo.com/v3.0/tracks/?format=json&limit=15&audiodlformat=mp32&client_id='+encodeURIComponent(j)+'&search='+encodeURIComponent(q))).json();R=(r.results||[]).filter(t=>t.audiodownload_allowed&&t.audiodownload).map(t=>({n:t.name,by:t.artist_name,u:t.audiodownload,save:1}))}
           RES=R;st(R.length?R.length+' resultados':'Nada encontrado.');
           $('dres').innerHTML=R.map((t,i)=>`<li><span class="nm">${esc(t.n||'')}<small> ${esc(t.by||'')}</small></span><button class="go" data-r="${i}">${t.save?'Baixar':'Ouvir'}</button></li>`).join('')}catch(e){st('Erro na busca. Confira a internet e a chave.')}};
+          $('hc').onclick=()=>{S.hist=[];save();draw()};
           draw();
           </script></body></html>
           EOF
