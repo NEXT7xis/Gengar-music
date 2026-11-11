@@ -79,8 +79,8 @@ jobs:
               applicationId 'com.gengar.music'
               minSdk 24
               targetSdk 34
-              versionCode 4
-              versionName '2.2'
+              versionCode 5
+              versionName '2.3'
             }
             signingConfigs {
               debug {
@@ -616,7 +616,7 @@ jobs:
           <div class="fence"></div>
           <script>
           const $=i=>document.getElementById(i),au=$('au'),B={};
-          let S={songs:[],lists:[]},Q=[],qi=-1,sh=0,rp=0,db;
+          let S={songs:[],lists:[]},Q=[],qi=-1,sh=0,rp=1,db;
           try{S=JSON.parse(localStorage.gm)}catch(e){}S.hist=S.hist||[];S.fav=S.fav||[];
           const save=()=>{try{localStorage.gm=JSON.stringify(S)}catch(e){}};
           const esc=s=>String(s).replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
@@ -637,6 +637,7 @@ jobs:
           $('nx').onclick=()=>step(1);$('pv').onclick=()=>step(-1);$('fv').onclick=fav;
           $('fpa').onclick=()=>{const v=FV();if(v.length)play(0,v)};
           $('sh').onclick=e=>{e.currentTarget.classList.toggle('on',sh=!sh);ms()};
+          $('rp').classList.add('on');
           $('rp').onclick=e=>e.currentTarget.classList.toggle('on',rp=!rp);
           au.onplay=au.onpause=()=>{$('pl').textContent=au.paused?'▶':'⏸';ms()};
           au.onplaying=au.onloadedmetadata=au.onseeked=ms;
