@@ -467,7 +467,7 @@ jobs:
 
             @Override public IBinder onBind(Intent i) { return null; }
 
-            @Override public void onTaskRemoved(Intent i) { if (!playing) stopSelf(); }
+            @Override public void onTaskRemoved(Intent i) { }
 
             @Override public void onDestroy() {
               inst = null;
@@ -479,7 +479,7 @@ jobs:
             void refresh(boolean force) {
               updateSession();
               Notification n = build();
-              if (playing || force) {
+              if (true) {
                 try {
                   if (Build.VERSION.SDK_INT >= 29) startForeground(ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
                   else startForeground(ID, n);
@@ -525,7 +525,7 @@ jobs:
               b.setSmallIcon(R.drawable.ic_notif)
                 .setContentTitle(title)
                 .setContentText(artist)
-                .setOngoing(playing)
+                .setOngoing(true)
                 .setShowWhen(false)
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
                 .setContentIntent(PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE))
