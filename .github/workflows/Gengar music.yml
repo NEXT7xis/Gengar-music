@@ -1,4 +1,4 @@
-name: Gengar Music APK
+name: Gengar Music APK (release otimizado)
 on:
   push:
   workflow_dispatch:
@@ -69,6 +69,9 @@ jobs:
           EOF
           cat > gradle.properties <<'EOF'
           org.gradle.jvmargs=-Xmx2g
+          org.gradle.parallel=true
+          org.gradle.caching=true
+          android.enableR8.fullMode=true
           EOF
           cat > app/build.gradle <<'EOF'
           plugins { id 'com.android.application' }
@@ -79,18 +82,37 @@ jobs:
               applicationId 'com.gengar.music'
               minSdk 24
               targetSdk 34
-              versionCode 5
-              versionName '2.3'
+              versionCode 6
+              versionName '2.4'
             }
             signingConfigs {
-              debug {
+              release {
                 storeFile file('gm.keystore')
                 storePassword 'android'
                 keyAlias 'androiddebugkey'
                 keyPassword 'android'
               }
             }
+            buildTypes {
+              release {
+                minifyEnabled true
+                shrinkResources true
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                signingConfig signingConfigs.release
+              }
+            }
+            compileOptions {
+              sourceCompatibility JavaVersion.VERSION_17
+              targetCompatibility JavaVersion.VERSION_17
+            }
           }
+          EOF
+          cat > app/proguard-rules.pro <<'EOF'
+          -keepclassmembers class * {
+              @android.webkit.JavascriptInterface <methods>;
+          }
+          -keep class com.gengar.music.MainActivity$Bridge { *; }
+          -dontwarn org.conscrypt.**
           EOF
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -101,7 +123,7 @@ jobs:
             <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
             <uses-permission android:name="android.permission.WAKE_LOCK"/>
             <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
-            <application android:label="Gengar Music" android:icon="@mipmap/ic_launcher" android:usesCleartextTraffic="true" android:theme="@android:style/Theme.Material.NoActionBar">
+            <application android:label="Gengar Music" android:icon="@mipmap/ic_launcher" android:usesCleartextTraffic="true" android:allowBackup="false" android:hardwareAccelerated="true" android:theme="@android:style/Theme.Material.NoActionBar">
               <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN"/>
@@ -178,7 +200,6 @@ jobs:
           EOF
           cat > app/src/main/java/com/gengar/music/MainActivity.java <<'EOF'
           package com.gengar.music;
-
           import android.Manifest;
           import android.app.Activity;
           import android.content.ClipData;
@@ -209,7 +230,6 @@ jobs:
           import java.io.RandomAccessFile;
           import java.net.HttpURLConnection;
           import java.net.URL;
-
           public class MainActivity extends Activity {
             static MainActivity inst;
             static WebView web;
@@ -217,12 +237,10 @@ jobs:
             static Context app;
             static ValueCallback<Uri[]> cb;
             static final Handler UI = new Handler(Looper.getMainLooper());
-
             static void js(final String c) {
               if (web == null) return;
               UI.post(() -> web.evaluateJavascript("window.gmCmd&&gmCmd('" + c + "')", null));
             }
-
             @Override protected void onCreate(Bundle b) {
               super.onCreate(b);
               inst = this;
@@ -261,12 +279,10 @@ jobs:
               if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
               else askBattery();
             }
-
             @Override public void onRequestPermissionsResult(int rq, String[] p, int[] r) {
               super.onRequestPermissionsResult(rq, p, r);
               askBattery();
             }
-
             void askBattery() {
               try {
                 SharedPreferences sp = getSharedPreferences("gm", MODE_PRIVATE);
@@ -278,7 +294,6 @@ jobs:
                 }
               } catch (Exception e) { }
             }
-
             @Override protected void onActivityResult(int rq, int rs, Intent d) {
               super.onActivityResult(rq, rs, d);
               if (rq == 11 && cb != null) {
@@ -296,22 +311,17 @@ jobs:
                 cb = null;
               }
             }
-
             @Override public void onBackPressed() { moveTaskToBack(true); }
-
             @Override protected void onDestroy() {
               if (web != null && web.getParent() != null) ((ViewGroup) web.getParent()).removeView(web);
               if (wctx != null) wctx.setBaseContext(app);
               if (inst == this) inst = null;
               super.onDestroy();
             }
-
             static String esc(String s) {
               return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ").replace("\r", " ");
             }
-
             static String safe(String s) { return s.replaceAll("[^A-Za-z0-9_]", ""); }
-
             static class Bridge {
               @JavascriptInterface public void get(final String url, final String id) {
                 new Thread(() -> {
@@ -322,7 +332,6 @@ jobs:
                   UI.post(() -> web.evaluateJavascript("gmDone('" + id + "'," + res + ")", null));
                 }).start();
               }
-
               @JavascriptInterface public String chunk(String id, int off, int len) {
                 try (RandomAccessFile f = new RandomAccessFile(new File(app.getCacheDir(), safe(id)), "r")) {
                   f.seek(off);
@@ -332,9 +341,7 @@ jobs:
                   return Base64.encodeToString(buf, 0, n, Base64.NO_WRAP);
                 } catch (Exception e) { return ""; }
               }
-
               @JavascriptInterface public void del(String id) { new File(app.getCacheDir(), safe(id)).delete(); }
-
               @JavascriptInterface public void media(String title, String artist, boolean playing, int posMs, int durMs, boolean shuffle, boolean fav) {
                 MusicService.title = title;
                 MusicService.artist = artist;
@@ -345,7 +352,6 @@ jobs:
                 MusicService.fav = fav;
                 UI.post(() -> MusicService.push(app));
               }
-
               @JavascriptInterface public void art(String b64) {
                 try {
                   byte[] d = Base64.decode(b64, Base64.DEFAULT);
@@ -354,7 +360,6 @@ jobs:
                 } catch (Exception e) { }
               }
             }
-
             static String download(String u, String id) throws Exception {
               String cur = u;
               HttpURLConnection c = null;
@@ -380,7 +385,7 @@ jobs:
               if (t.startsWith("text/")) throw new Exception("O link nao e de um arquivo de audio");
               InputStream in = c.getInputStream();
               FileOutputStream out = new FileOutputStream(new File(app.getCacheDir(), id));
-              byte[] buf = new byte[32768];
+              byte[] buf = new byte[65536];
               int n;
               long size = 0;
               while ((n = in.read(buf)) != -1) { out.write(buf, 0, n); size += n; }
@@ -392,7 +397,6 @@ jobs:
           EOF
           cat > app/src/main/java/com/gengar/music/MusicService.java <<'EOF'
           package com.gengar.music;
-
           import android.app.Notification;
           import android.app.NotificationChannel;
           import android.app.NotificationManager;
@@ -410,7 +414,6 @@ jobs:
           import android.os.IBinder;
           import android.os.PowerManager;
           import android.os.SystemClock;
-
           public class MusicService extends Service {
             static MusicService inst;
             static String title = "Gengar Music", artist = "Gengar Music";
@@ -423,7 +426,6 @@ jobs:
             NotificationManager nm;
             PowerManager.WakeLock wl;
             boolean fg;
-
             static void push(Context c) {
               if (inst == null) {
                 Intent i = new Intent(c, MusicService.class);
@@ -432,7 +434,6 @@ jobs:
                 } catch (Exception e) { }
               } else inst.refresh(false);
             }
-
             @Override public void onCreate() {
               super.onCreate();
               inst = this;
@@ -457,42 +458,31 @@ jobs:
               wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "gengar:music");
               wl.setReferenceCounted(false);
             }
-
             @Override public int onStartCommand(Intent i, int f, int s) {
               String a = i == null ? null : i.getAction();
               if (a != null && a.startsWith("gm.")) MainActivity.js(a.substring(3));
               else refresh(true);
               return START_NOT_STICKY;
             }
-
             @Override public IBinder onBind(Intent i) { return null; }
-
             @Override public void onTaskRemoved(Intent i) { }
-
             @Override public void onDestroy() {
               inst = null;
               if (wl != null && wl.isHeld()) wl.release();
               session.release();
               super.onDestroy();
             }
-
             void refresh(boolean force) {
               updateSession();
               Notification n = build();
-              if (true) {
-                try {
-                  if (Build.VERSION.SDK_INT >= 29) startForeground(ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
-                  else startForeground(ID, n);
-                  fg = true;
-                } catch (Exception e) { nm.notify(ID, n); }
-              } else {
-                if (fg) { stopForeground(false); fg = false; }
-                nm.notify(ID, n);
-              }
+              try {
+                if (Build.VERSION.SDK_INT >= 29) startForeground(ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+                else startForeground(ID, n);
+                fg = true;
+              } catch (Exception e) { nm.notify(ID, n); }
               if (playing) { if (!wl.isHeld()) wl.acquire(10L * 60 * 60 * 1000); }
               else if (wl.isHeld()) wl.release();
             }
-
             void updateSession() {
               MediaMetadata.Builder m = new MediaMetadata.Builder()
                 .putString(MediaMetadata.METADATA_KEY_TITLE, title)
@@ -513,12 +503,10 @@ jobs:
                 .addCustomAction(new PlaybackState.CustomAction.Builder("shuf", "Aleatório", shuffle ? R.drawable.ic_shuffle_on : R.drawable.ic_shuffle).build());
               session.setPlaybackState(p.build());
             }
-
             PendingIntent pi(String c) {
               Intent i = new Intent(this, MusicService.class).setAction("gm." + c);
               return PendingIntent.getService(this, c.hashCode(), i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
             }
-
             Notification build() {
               Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CH) : new Notification.Builder(this);
               Intent open = new Intent(this, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -616,9 +604,9 @@ jobs:
           <div class="fence"></div>
           <script>
           const $=i=>document.getElementById(i),au=$('au'),B={};
-          let S={songs:[],lists:[]},Q=[],qi=-1,sh=0,rp=1,db;
+          let S={songs:[],lists:[]},Q=[],qi=-1,sh=0,rp=1,db,saveT;
           try{S=JSON.parse(localStorage.gm)}catch(e){}S.hist=S.hist||[];S.fav=S.fav||[];
-          const save=()=>{try{localStorage.gm=JSON.stringify(S)}catch(e){}};
+          const save=()=>{clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.gm=JSON.stringify(S)}catch(e){}},250)};
           const esc=s=>String(s).replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
           const fm=s=>isFinite(s)?Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'):'0:00';
           try{const o=indexedDB.open('gm',1);o.onupgradeneeded=()=>o.result.createObjectStore('b');o.onsuccess=()=>{db=o.result}}catch(e){}
@@ -660,7 +648,7 @@ jobs:
           function playUrl(u,n){Q=[];qi=-1;au.src=u;au.play();$('t').textContent=n;$('a').textContent='Ouvindo online';draw()}
           function dl(u,n,by){const id='d'+(++jid)+Date.now();pend[id]={n,by};st('Baixando '+n+'...');Android.get(u,id)}
           function gmDone(id,r){const p=pend[id],n=p.n;delete pend[id];if(!r.ok){st('Erro: '+r.err);return}
-          st('Salvando...');let off=0;const P=[],L=393216;
+          st('Salvando...');let off=0;const P=[],L=524288;
           (function nx(){const s=Android.chunk(id,off,L);if(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);P.push(u);off+=b.length;if(off<r.size)return setTimeout(nx,0)}
           Android.del(id);if(!off){st('Erro ao salvar o arquivo');return}
           const sid=Date.now()+Math.random().toString(36).slice(2,6);put(sid,new Blob(P,{type:/^audio/.test(r.type)?r.type:'audio/mpeg'}));S.songs.push({id:sid,n:p.by?n+' - '+p.by:n,t:n,by:p.by||''});save();draw();st('Pronto: '+n+' (aba Músicas)')})()}
@@ -675,10 +663,10 @@ jobs:
           draw();setTimeout(sendArt,400);
           </script></body></html>
           EOF
-      - name: Compilar
+      - name: Compilar release
         working-directory: gm
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleRelease --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: Gengar-Music-APK
-          path: gm/app/build/outputs/apk/debug/app-debug.apk
+          name: Gengar-Music-APK-release
+          path: gm/app/build/outputs/apk/release/app-release.apk
