@@ -82,8 +82,8 @@ jobs:
               applicationId 'com.gengar.music'
               minSdk 24
               targetSdk 34
-              versionCode 6
-              versionName '2.4'
+              versionCode 7
+              versionName '2.5'
             }
             signingConfigs {
               release {
@@ -596,7 +596,11 @@ jobs:
           <main id="l" hidden><div class="mk"><input id="pn" placeholder="Nome da playlist"><button id="pc">Criar</button></div><ul id="ll"></ul></main>
           <main id="dw" hidden>
           <div class="mk"><input id="dlk" placeholder="Link direto de um mp3"><button id="dgo">Baixar</button></div>
-          <div class="mk"><input id="dq" placeholder="Buscar música grátis"><select id="dso"><option value="a">Audius</option><option value="j">Jamendo</option></select><button id="dbs">Buscar</button></div>
+          <div class="mk" style="flex-wrap:wrap;gap:8px">
+          <input id="dq" placeholder="Buscar música" style="flex:1;min-width:0">
+          <select id="dso" style="max-width:130px"><option value="y">YouTube</option><option value="a">Audius</option><option value="j">Jamendo</option></select>
+          <button id="dbs" style="margin-bottom:0">Buscar</button>
+          </div>
           <div class="mk"><input id="djk" placeholder="Chave do Jamendo (só para Jamendo)"></div>
           <div id="dst" class="sub"></div><ul id="dres"></ul></main>
           <main id="hs" hidden><button class="add" id="hc" style="width:100%">Limpar histórico</button><ul id="hl"></ul></main>
@@ -634,7 +638,7 @@ jobs:
           $('p').oninput=e=>au.duration&&(au.currentTime=e.target.value/1000*au.duration);
           document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));$('s').hidden=b.dataset.v!='s';$('l').hidden=b.dataset.v!='l';$('dw').hidden=b.dataset.v!='dw';$('hs').hidden=b.dataset.v!='hs';$('fa').hidden=b.dataset.v!='fa'});
           $('pc').onclick=()=>{const n=$('pn').value.trim();if(n){S.lists.push({n,ids:[]});$('pn').value='';save();draw()}};
-          document.onclick=e=>{const t=e.target;if(t.dataset.p)play(+t.dataset.p,S.songs.map(x=>x.id));if(t.dataset.fs!==undefined)tf(S.songs[+t.dataset.fs].id);if(t.dataset.fp!==undefined)play(+t.dataset.fp,FV());if(t.dataset.fr!==undefined)tf(FV()[+t.dataset.fr]);if(t.dataset.r){const x=RES[t.dataset.r];x.save?dl(x.u,x.n,x.by):playUrl(x.u,x.n)}if(t.dataset.pi){const[j,i]=t.dataset.pi.split(',');play(+i,[...S.lists[j].ids])}if(t.dataset.rm){const[j,i]=t.dataset.rm.split(',');S.lists[j].ids.splice(+i,1);save();draw()}if(t.dataset.hp)play(+t.dataset.hp,S.hist.filter(i=>S.songs.some(x=>x.id==i)));if(t.dataset.x!==undefined){if(t.textContent=='Apagar'){t.textContent='Tem certeza?';setTimeout(draw,3000)}else{S.lists.splice(+t.dataset.x,1);save();draw()}}if(t.dataset.ds!==undefined){if(t.textContent=='✕'){t.textContent='Apagar?';setTimeout(draw,3000)}else delSong(S.songs[+t.dataset.ds].id)}if(t.dataset.l){const l=S.lists[t.dataset.l];if(l.ids.length)play(0,[...l.ids])}};
+          document.onclick=e=>{const t=e.target;if(t.dataset.p)play(+t.dataset.p,S.songs.map(x=>x.id));if(t.dataset.fs!==undefined)tf(S.songs[+t.dataset.fs].id);if(t.dataset.fp!==undefined)play(+t.dataset.fp,FV());if(t.dataset.fr!==undefined)tf(FV()[+t.dataset.fr]);if(t.dataset.r!==undefined){const x=RES[+t.dataset.r];x.vid?playYT(x.vid,x.n,x.by,t.dataset.dl=='1'):x.save?dl(x.u,x.n,x.by):playUrl(x.u,x.n)}if(t.dataset.pi){const[j,i]=t.dataset.pi.split(',');play(+i,[...S.lists[j].ids])}if(t.dataset.rm){const[j,i]=t.dataset.rm.split(',');S.lists[j].ids.splice(+i,1);save();draw()}if(t.dataset.hp)play(+t.dataset.hp,S.hist.filter(i=>S.songs.some(x=>x.id==i)));if(t.dataset.x!==undefined){if(t.textContent=='Apagar'){t.textContent='Tem certeza?';setTimeout(draw,3000)}else{S.lists.splice(+t.dataset.x,1);save();draw()}}if(t.dataset.ds!==undefined){if(t.textContent=='✕'){t.textContent='Apagar?';setTimeout(draw,3000)}else delSong(S.songs[+t.dataset.ds].id)}if(t.dataset.l){const l=S.lists[t.dataset.l];if(l.ids.length)play(0,[...l.ids])}};
           document.onchange=e=>{const t=e.target;if(t.dataset.a&&t.value!==''){const l=S.lists[t.value];if(!l.ids.includes(t.dataset.a))l.ids.push(t.dataset.a);save();draw()}};
           function draw(){const cur=Q[qi],nm=id=>(S.songs.find(x=>x.id==id)||{n:'?'}).n,lk=S.fav.includes(cur);
           $('fv').textContent=lk?'♥':'♡';$('fv').classList.toggle('on',lk);
@@ -653,12 +657,18 @@ jobs:
           Android.del(id);if(!off){st('Erro ao salvar o arquivo');return}
           const sid=Date.now()+Math.random().toString(36).slice(2,6);put(sid,new Blob(P,{type:/^audio/.test(r.type)?r.type:'audio/mpeg'}));S.songs.push({id:sid,n:p.by?n+' - '+p.by:n,t:n,by:p.by||''});save();draw();st('Pronto: '+n+' (aba Músicas)')})()}
           $('dgo').onclick=()=>{const u=$('dlk').value.trim();if(!/^https?:\/\//i.test(u)){st('Cole um link que comece com http');return}let n='Música';try{n=decodeURIComponent(u.split('?')[0].split('/').pop()).replace(/\.[^.]+$/,'')||n}catch(e){}dl(u,n)};
-          $('dbs').onclick=async()=>{const q=$('dq').value.trim(),j=$('djk').value.trim();if(!q)return;try{localStorage.jk=j}catch(e){}st('Buscando...');$('dres').innerHTML='';
+          const INV=['https://invidious.jing.rocks','https://vid.puffyan.us','https://invidious.nerdvpn.de','https://invidious.privacydev.net'];
+          let iIdx=0;
+          async function invFetch(path){for(let t=0;t<INV.length;t++){const base=INV[(iIdx+t)%INV.length];try{const r=await fetch(base+path,{signal:AbortSignal.timeout(8000)});if(r.ok){iIdx=(iIdx+t)%INV.length;return r.json()}}catch(e){}}throw new Error('Nenhum servidor Invidious disponível')}
+          async function ytAudioUrl(vid){const d=await invFetch('/api/v1/videos/'+vid+'?fields=adaptiveFormats,formatStreams');const fmts=[...(d.adaptiveFormats||[]),...(d.formatStreams||[])].filter(f=>(f.type||'').startsWith('audio'));fmts.sort((a,b)=>(+b.bitrate||0)-(+a.bitrate||0));const f=fmts[0];if(!f)throw new Error('Sem stream de áudio');return f.url}
+          async function playYT(vid,n,by,save){st(save?'Obtendo link...':'Carregando...');try{const u=await ytAudioUrl(vid);if(save)dl(u,n,by);else{Q=[];qi=-1;au.src=u;au.play();$('t').textContent=by?n+' - '+by:n;$('a').textContent='Gengar Music';draw();st('')}}catch(e){st('Erro: '+e.message)}}
+          $('dbs').onclick=async()=>{const q=$('dq').value.trim(),j=$('djk').value.trim(),src=$('dso').value;if(!q)return;try{localStorage.jk=j}catch(e){}st('Buscando...');$('dres').innerHTML='';
           try{let R=[];
-          if($('dso').value=='a'){const r=await(await fetch('https://api.audius.co/v1/tracks/search?limit=15&app_name=GengarMusic&query='+encodeURIComponent(q))).json();R=(r.data||[]).map(t=>({n:t.title,by:t.user&&t.user.name,u:'https://api.audius.co/v1/tracks/'+t.id+'/stream?app_name=GengarMusic'}))}
+          if(src=='y'){const d=await invFetch('/api/v1/search?q='+encodeURIComponent(q)+'&type=video&fields=videoId,title,author,lengthSeconds');R=(d||[]).filter(x=>x.videoId).map(x=>({n:x.title,by:x.author,vid:x.videoId,dur:x.lengthSeconds}))}
+          else if(src=='a'){const r=await(await fetch('https://api.audius.co/v1/tracks/search?limit=15&app_name=GengarMusic&query='+encodeURIComponent(q))).json();R=(r.data||[]).map(t=>({n:t.title,by:t.user&&t.user.name,u:'https://api.audius.co/v1/tracks/'+t.id+'/stream?app_name=GengarMusic'}))}
           else{if(!j){st('Cole sua chave (client_id) do Jamendo.');return}const r=await(await fetch('https://api.jamendo.com/v3.0/tracks/?format=json&limit=15&audiodlformat=mp32&client_id='+encodeURIComponent(j)+'&search='+encodeURIComponent(q))).json();R=(r.results||[]).filter(t=>t.audiodownload_allowed&&t.audiodownload).map(t=>({n:t.name,by:t.artist_name,u:t.audiodownload,save:1}))}
           RES=R;st(R.length?R.length+' resultados':'Nada encontrado.');
-          $('dres').innerHTML=R.map((t,i)=>`<li><span class="nm">${esc(t.n||'')}<small> ${esc(t.by||'')}</small></span><button class="go" data-r="${i}">${t.save?'Baixar':'Ouvir'}</button></li>`).join('')}catch(e){st('Erro na busca. Confira a internet e a chave.')}};
+          $('dres').innerHTML=R.map((t,i)=>{const dur=t.dur?Math.floor(t.dur/60)+':'+String(t.dur%60).padStart(2,'0'):'';const info=`${esc(t.n||'')}${t.by?' <small>'+esc(t.by)+'</small>':''}${dur?' <small>'+dur+'</small>':''}`;if(t.vid)return`<li><span class="nm">${info}</span><button class="go" data-r="${i}">▶ Ouvir</button><button class="go" data-r="${i}" data-dl="1" style="background:var(--pur)">⬇ Baixar</button></li>`;return`<li><span class="nm">${info}</span><button class="go" data-r="${i}">${t.save?'⬇ Baixar':'▶ Ouvir'}</button></li>`}).join('')}catch(e){st('Erro: '+e.message)}};
           $('hc').onclick=()=>{S.hist=[];save();draw()};
           draw();setTimeout(sendArt,400);
           </script></body></html>
