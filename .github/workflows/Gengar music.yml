@@ -82,8 +82,8 @@ jobs:
               applicationId 'com.gengar.music'
               minSdk 24
               targetSdk 34
-              versionCode 7
-              versionName '2.5'
+              versionCode 8
+              versionName '2.6'
             }
             signingConfigs {
               release {
@@ -657,18 +657,18 @@ jobs:
           Android.del(id);if(!off){st('Erro ao salvar o arquivo');return}
           const sid=Date.now()+Math.random().toString(36).slice(2,6);put(sid,new Blob(P,{type:/^audio/.test(r.type)?r.type:'audio/mpeg'}));S.songs.push({id:sid,n:p.by?n+' - '+p.by:n,t:n,by:p.by||''});save();draw();st('Pronto: '+n+' (aba Músicas)')})()}
           $('dgo').onclick=()=>{const u=$('dlk').value.trim();if(!/^https?:\/\//i.test(u)){st('Cole um link que comece com http');return}let n='Música';try{n=decodeURIComponent(u.split('?')[0].split('/').pop()).replace(/\.[^.]+$/,'')||n}catch(e){}dl(u,n)};
-          const INV=['https://invidious.jing.rocks','https://vid.puffyan.us','https://invidious.nerdvpn.de','https://invidious.privacydev.net'];
-          let iIdx=0;
-          async function invFetch(path){for(let t=0;t<INV.length;t++){const base=INV[(iIdx+t)%INV.length];try{const r=await fetch(base+path,{signal:AbortSignal.timeout(8000)});if(r.ok){iIdx=(iIdx+t)%INV.length;return r.json()}}catch(e){}}throw new Error('Nenhum servidor Invidious disponível')}
-          async function ytAudioUrl(vid){const d=await invFetch('/api/v1/videos/'+vid+'?fields=adaptiveFormats,formatStreams');const fmts=[...(d.adaptiveFormats||[]),...(d.formatStreams||[])].filter(f=>(f.type||'').startsWith('audio'));fmts.sort((a,b)=>(+b.bitrate||0)-(+a.bitrate||0));const f=fmts[0];if(!f)throw new Error('Sem stream de áudio');return f.url}
+          const PIPED=['https://pipedapi.kavin.rocks','https://pipedapi.in.projectsegfau.lt','https://pipedapi.adminforge.de','https://piped-api.garudalinux.org','https://api.piped.yt'];
+          let pIdx=0;
+          async function pipedFetch(path){for(let t=0;t<PIPED.length;t++){const base=PIPED[(pIdx+t)%PIPED.length];try{const r=await fetch(base+path,{signal:AbortSignal.timeout(9000)});if(r.ok){pIdx=(pIdx+t)%PIPED.length;return r.json()}}catch(e){}}throw new Error('Nenhum servidor disponível. Tente novamente.')}
+          async function ytAudioUrl(vid){const d=await pipedFetch('/streams/'+vid);const fmts=(d.audioStreams||[]).filter(f=>f.url);fmts.sort((a,b)=>(+b.bitrate||0)-(+a.bitrate||0));const f=fmts[0];if(!f)throw new Error('Sem stream de áudio');return f.url}
           async function playYT(vid,n,by,save){st(save?'Obtendo link...':'Carregando...');try{const u=await ytAudioUrl(vid);if(save)dl(u,n,by);else{Q=[];qi=-1;au.src=u;au.play();$('t').textContent=by?n+' - '+by:n;$('a').textContent='Gengar Music';draw();st('')}}catch(e){st('Erro: '+e.message)}}
           $('dbs').onclick=async()=>{const q=$('dq').value.trim(),j=$('djk').value.trim(),src=$('dso').value;if(!q)return;try{localStorage.jk=j}catch(e){}st('Buscando...');$('dres').innerHTML='';
           try{let R=[];
-          if(src=='y'){const d=await invFetch('/api/v1/search?q='+encodeURIComponent(q)+'&type=video&fields=videoId,title,author,lengthSeconds');R=(d||[]).filter(x=>x.videoId).map(x=>({n:x.title,by:x.author,vid:x.videoId,dur:x.lengthSeconds}))}
+          if(src=='y'){const d=await pipedFetch('/search?q='+encodeURIComponent(q)+'&filter=music_songs');R=(d.items||[]).filter(x=>x.url).map(x=>({n:x.title,by:x.uploaderName,vid:x.url.replace('/watch?v=',''),dur:x.duration}))}
           else if(src=='a'){const r=await(await fetch('https://api.audius.co/v1/tracks/search?limit=15&app_name=GengarMusic&query='+encodeURIComponent(q))).json();R=(r.data||[]).map(t=>({n:t.title,by:t.user&&t.user.name,u:'https://api.audius.co/v1/tracks/'+t.id+'/stream?app_name=GengarMusic'}))}
           else{if(!j){st('Cole sua chave (client_id) do Jamendo.');return}const r=await(await fetch('https://api.jamendo.com/v3.0/tracks/?format=json&limit=15&audiodlformat=mp32&client_id='+encodeURIComponent(j)+'&search='+encodeURIComponent(q))).json();R=(r.results||[]).filter(t=>t.audiodownload_allowed&&t.audiodownload).map(t=>({n:t.name,by:t.artist_name,u:t.audiodownload,save:1}))}
           RES=R;st(R.length?R.length+' resultados':'Nada encontrado.');
-          $('dres').innerHTML=R.map((t,i)=>{const dur=t.dur?Math.floor(t.dur/60)+':'+String(t.dur%60).padStart(2,'0'):'';const info=`${esc(t.n||'')}${t.by?' <small>'+esc(t.by)+'</small>':''}${dur?' <small>'+dur+'</small>':''}`;if(t.vid)return`<li><span class="nm">${info}</span><button class="go" data-r="${i}">▶ Ouvir</button><button class="go" data-r="${i}" data-dl="1" style="background:var(--pur)">⬇ Baixar</button></li>`;return`<li><span class="nm">${info}</span><button class="go" data-r="${i}">${t.save?'⬇ Baixar':'▶ Ouvir'}</button></li>`}).join('')}catch(e){st('Erro: '+e.message)}};
+          $('dres').innerHTML=R.map((t,i)=>{const dur=t.dur>0?Math.floor(t.dur/60)+':'+String(t.dur%60).padStart(2,'0'):'';const info=`${esc(t.n||'')}${t.by?' <small>'+esc(t.by)+'</small>':''}${dur?' <small>'+dur+'</small>':''}`;if(t.vid)return`<li><span class="nm">${info}</span><button class="go" data-r="${i}">▶ Ouvir</button><button class="go" data-r="${i}" data-dl="1" style="background:var(--pur)">⬇ Baixar</button></li>`;return`<li><span class="nm">${info}</span><button class="go" data-r="${i}">${t.save?'⬇ Baixar':'▶ Ouvir'}</button></li>`}).join('')}catch(e){st('Erro: '+e.message)}};
           $('hc').onclick=()=>{S.hist=[];save();draw()};
           draw();setTimeout(sendArt,400);
           </script></body></html>
