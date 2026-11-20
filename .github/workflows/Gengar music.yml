@@ -82,8 +82,8 @@ jobs:
               applicationId 'com.gengar.music'
               minSdk 24
               targetSdk 34
-              versionCode 8
-              versionName '2.6'
+              versionCode 9
+              versionName '2.7'
             }
             signingConfigs {
               release {
@@ -224,12 +224,15 @@ jobs:
           import android.webkit.WebChromeClient;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
+          import java.io.BufferedReader;
           import java.io.File;
           import java.io.FileOutputStream;
           import java.io.InputStream;
+          import java.io.InputStreamReader;
           import java.io.RandomAccessFile;
           import java.net.HttpURLConnection;
           import java.net.URL;
+          import java.util.concurrent.atomic.AtomicInteger;
           public class MainActivity extends Activity {
             static MainActivity inst;
             static WebView web;
@@ -237,6 +240,14 @@ jobs:
             static Context app;
             static ValueCallback<Uri[]> cb;
             static final Handler UI = new Handler(Looper.getMainLooper());
+            static final String[] PIPED = {
+              "https://pipedapi.kavin.rocks",
+              "https://pipedapi.in.projectsegfau.lt",
+              "https://pipedapi.adminforge.de",
+              "https://piped-api.garudalinux.org",
+              "https://api.piped.yt"
+            };
+            static int pipedIdx = 0;
             static void js(final String c) {
               if (web == null) return;
               UI.post(() -> web.evaluateJavascript("window.gmCmd&&gmCmd('" + c + "')", null));
@@ -299,7 +310,7 @@ jobs:
               if (rq == 11 && cb != null) {
                 Uri[] r = null;
                 if (rs == RESULT_OK && d != null) {
-                  ClipData cd = d.getClipData();
+                  android.content.ClipData cd = d.getClipData();
                   if (cd != null) {
                     r = new Uri[cd.getItemCount()];
                     for (int i = 0; i < r.length; i++) r[i] = cd.getItemAt(i).getUri();
@@ -322,6 +333,21 @@ jobs:
               return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ").replace("\r", " ");
             }
             static String safe(String s) { return s.replaceAll("[^A-Za-z0-9_]", ""); }
+            static String httpGet(String u) throws Exception {
+              HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
+              c.setConnectTimeout(10000);
+              c.setReadTimeout(15000);
+              c.setRequestProperty("User-Agent", "Mozilla/5.0 GengarMusic/2.7");
+              c.setRequestProperty("Accept", "application/json");
+              int code = c.getResponseCode();
+              if (code >= 400) throw new Exception("HTTP " + code);
+              BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
+              StringBuilder sb = new StringBuilder();
+              String line;
+              while ((line = br.readLine()) != null) sb.append(line);
+              br.close();
+              return sb.toString();
+            }
             static class Bridge {
               @JavascriptInterface public void get(final String url, final String id) {
                 new Thread(() -> {
@@ -330,6 +356,31 @@ jobs:
                   catch (Exception e) { r = "{\"ok\":false,\"err\":\"" + esc(String.valueOf(e.getMessage())) + "\"}"; }
                   final String res = r;
                   UI.post(() -> web.evaluateJavascript("gmDone('" + id + "'," + res + ")", null));
+                }).start();
+              }
+              @JavascriptInterface public void apiGet(final String path, final String cbId) {
+                new Thread(() -> {
+                  String result = null;
+                  String lastErr = "Falha em todos os servidores";
+                  for (int t = 0; t < PIPED.length; t++) {
+                    int idx = (pipedIdx + t) % PIPED.length;
+                    try {
+                      result = httpGet(PIPED[idx] + path);
+                      pipedIdx = idx;
+                      break;
+                    } catch (Exception e) {
+                      lastErr = e.getMessage();
+                    }
+                  }
+                  final String res = result;
+                  final String err = lastErr;
+                  UI.post(() -> {
+                    if (res != null) {
+                      web.evaluateJavascript("gmApi('" + cbId + "'," + res + ")", null);
+                    } else {
+                      web.evaluateJavascript("gmApiErr('" + cbId + "',\"" + esc(err) + "\")", null);
+                    }
+                  });
                 }).start();
               }
               @JavascriptInterface public String chunk(String id, int off, int len) {
@@ -638,6 +689,10 @@ jobs:
           $('p').oninput=e=>au.duration&&(au.currentTime=e.target.value/1000*au.duration);
           document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));$('s').hidden=b.dataset.v!='s';$('l').hidden=b.dataset.v!='l';$('dw').hidden=b.dataset.v!='dw';$('hs').hidden=b.dataset.v!='hs';$('fa').hidden=b.dataset.v!='fa'});
           $('pc').onclick=()=>{const n=$('pn').value.trim();if(n){S.lists.push({n,ids:[]});$('pn').value='';save();draw()}};
+          const apiCbs={};let apiSeq=0;
+          function javaGet(path){return new Promise((ok,fail)=>{const id='a'+(++apiSeq);apiCbs[id]={ok,fail};try{Android.apiGet(path,id)}catch(e){delete apiCbs[id];fail(e)}})}
+          window.gmApi=(id,data)=>{const c=apiCbs[id];if(c){delete apiCbs[id];c.ok(data)}};
+          window.gmApiErr=(id,err)=>{const c=apiCbs[id];if(c){delete apiCbs[id];c.fail(new Error(err))}};
           document.onclick=e=>{const t=e.target;if(t.dataset.p)play(+t.dataset.p,S.songs.map(x=>x.id));if(t.dataset.fs!==undefined)tf(S.songs[+t.dataset.fs].id);if(t.dataset.fp!==undefined)play(+t.dataset.fp,FV());if(t.dataset.fr!==undefined)tf(FV()[+t.dataset.fr]);if(t.dataset.r!==undefined){const x=RES[+t.dataset.r];x.vid?playYT(x.vid,x.n,x.by,t.dataset.dl=='1'):x.save?dl(x.u,x.n,x.by):playUrl(x.u,x.n)}if(t.dataset.pi){const[j,i]=t.dataset.pi.split(',');play(+i,[...S.lists[j].ids])}if(t.dataset.rm){const[j,i]=t.dataset.rm.split(',');S.lists[j].ids.splice(+i,1);save();draw()}if(t.dataset.hp)play(+t.dataset.hp,S.hist.filter(i=>S.songs.some(x=>x.id==i)));if(t.dataset.x!==undefined){if(t.textContent=='Apagar'){t.textContent='Tem certeza?';setTimeout(draw,3000)}else{S.lists.splice(+t.dataset.x,1);save();draw()}}if(t.dataset.ds!==undefined){if(t.textContent=='✕'){t.textContent='Apagar?';setTimeout(draw,3000)}else delSong(S.songs[+t.dataset.ds].id)}if(t.dataset.l){const l=S.lists[t.dataset.l];if(l.ids.length)play(0,[...l.ids])}};
           document.onchange=e=>{const t=e.target;if(t.dataset.a&&t.value!==''){const l=S.lists[t.value];if(!l.ids.includes(t.dataset.a))l.ids.push(t.dataset.a);save();draw()}};
           function draw(){const cur=Q[qi],nm=id=>(S.songs.find(x=>x.id==id)||{n:'?'}).n,lk=S.fav.includes(cur);
@@ -657,14 +712,11 @@ jobs:
           Android.del(id);if(!off){st('Erro ao salvar o arquivo');return}
           const sid=Date.now()+Math.random().toString(36).slice(2,6);put(sid,new Blob(P,{type:/^audio/.test(r.type)?r.type:'audio/mpeg'}));S.songs.push({id:sid,n:p.by?n+' - '+p.by:n,t:n,by:p.by||''});save();draw();st('Pronto: '+n+' (aba Músicas)')})()}
           $('dgo').onclick=()=>{const u=$('dlk').value.trim();if(!/^https?:\/\//i.test(u)){st('Cole um link que comece com http');return}let n='Música';try{n=decodeURIComponent(u.split('?')[0].split('/').pop()).replace(/\.[^.]+$/,'')||n}catch(e){}dl(u,n)};
-          const PIPED=['https://pipedapi.kavin.rocks','https://pipedapi.in.projectsegfau.lt','https://pipedapi.adminforge.de','https://piped-api.garudalinux.org','https://api.piped.yt'];
-          let pIdx=0;
-          async function pipedFetch(path){for(let t=0;t<PIPED.length;t++){const base=PIPED[(pIdx+t)%PIPED.length];try{const r=await fetch(base+path,{signal:AbortSignal.timeout(9000)});if(r.ok){pIdx=(pIdx+t)%PIPED.length;return r.json()}}catch(e){}}throw new Error('Nenhum servidor disponível. Tente novamente.')}
-          async function ytAudioUrl(vid){const d=await pipedFetch('/streams/'+vid);const fmts=(d.audioStreams||[]).filter(f=>f.url);fmts.sort((a,b)=>(+b.bitrate||0)-(+a.bitrate||0));const f=fmts[0];if(!f)throw new Error('Sem stream de áudio');return f.url}
+          async function ytAudioUrl(vid){const d=await javaGet('/streams/'+vid);const fmts=(d.audioStreams||[]).filter(f=>f.url);fmts.sort((a,b)=>(+b.bitrate||0)-(+a.bitrate||0));const f=fmts[0];if(!f)throw new Error('Sem stream de áudio');return f.url}
           async function playYT(vid,n,by,save){st(save?'Obtendo link...':'Carregando...');try{const u=await ytAudioUrl(vid);if(save)dl(u,n,by);else{Q=[];qi=-1;au.src=u;au.play();$('t').textContent=by?n+' - '+by:n;$('a').textContent='Gengar Music';draw();st('')}}catch(e){st('Erro: '+e.message)}}
           $('dbs').onclick=async()=>{const q=$('dq').value.trim(),j=$('djk').value.trim(),src=$('dso').value;if(!q)return;try{localStorage.jk=j}catch(e){}st('Buscando...');$('dres').innerHTML='';
           try{let R=[];
-          if(src=='y'){const d=await pipedFetch('/search?q='+encodeURIComponent(q)+'&filter=music_songs');R=(d.items||[]).filter(x=>x.url).map(x=>({n:x.title,by:x.uploaderName,vid:x.url.replace('/watch?v=',''),dur:x.duration}))}
+          if(src=='y'){const d=await javaGet('/search?q='+encodeURIComponent(q)+'&filter=music_songs');R=(d.items||[]).filter(x=>x.url).map(x=>({n:x.title,by:x.uploaderName,vid:x.url.replace('/watch?v=',''),dur:x.duration}))}
           else if(src=='a'){const r=await(await fetch('https://api.audius.co/v1/tracks/search?limit=15&app_name=GengarMusic&query='+encodeURIComponent(q))).json();R=(r.data||[]).map(t=>({n:t.title,by:t.user&&t.user.name,u:'https://api.audius.co/v1/tracks/'+t.id+'/stream?app_name=GengarMusic'}))}
           else{if(!j){st('Cole sua chave (client_id) do Jamendo.');return}const r=await(await fetch('https://api.jamendo.com/v3.0/tracks/?format=json&limit=15&audiodlformat=mp32&client_id='+encodeURIComponent(j)+'&search='+encodeURIComponent(q))).json();R=(r.results||[]).filter(t=>t.audiodownload_allowed&&t.audiodownload).map(t=>({n:t.name,by:t.artist_name,u:t.audiodownload,save:1}))}
           RES=R;st(R.length?R.length+' resultados':'Nada encontrado.');
