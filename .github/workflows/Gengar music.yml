@@ -1,3 +1,4 @@
+cat > /mnt/user-data/outputs/compilar.yml << 'YMLEOF'
 name: Gengar Music APK (release otimizado)
 on:
   push:
@@ -10,6 +11,14 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: gradle-${{ runner.os }}-
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
@@ -82,8 +91,8 @@ jobs:
               applicationId 'com.gengar.music'
               minSdk 24
               targetSdk 34
-              versionCode 13
-              versionName '3.1'
+              versionCode 14
+              versionName '3.2'
             }
             signingConfigs {
               release {
@@ -330,7 +339,7 @@ jobs:
               HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
               c.setConnectTimeout(12000);
               c.setReadTimeout(15000);
-              c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) GengarMusic/3.1");
+              c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) GengarMusic/3.2");
               c.setRequestProperty("Accept", "application/json");
               int code = c.getResponseCode();
               if (code >= 400) throw new Exception("HTTP " + code);
@@ -349,7 +358,7 @@ jobs:
               c.setRequestMethod("POST");
               c.setRequestProperty("Content-Type", "application/json");
               c.setRequestProperty("Accept", "application/json");
-              c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) GengarMusic/3.1");
+              c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) GengarMusic/3.2");
               byte[] body = json.getBytes(StandardCharsets.UTF_8);
               OutputStream os = c.getOutputStream();
               os.write(body);
@@ -395,15 +404,43 @@ jobs:
                   });
                 }).start();
               }
-              @JavascriptInterface public void cobaltGet(final String ytUrl, final String cbId) {
+              @JavascriptInterface public void cobaltGet(final String mediaUrl, final String cbId) {
                 new Thread(() -> {
                   String result = null;
                   String lastErr = "Erro ao extrair áudio";
-                  try {
-                    String json = "{\"url\":\"" + ytUrl + "\",\"downloadMode\":\"audio\",\"audioFormat\":\"mp3\",\"audioBitrate\":\"128\"}";
-                    result = httpPost("https://api.cobalt.tools/", json);
-                  } catch (Exception e) {
-                    lastErr = e.getMessage() != null ? e.getMessage() : e.toString();
+                  // instâncias cobalt em ordem de fallback
+                  String[] COBALT = {
+                    "https://api.cobalt.tools/",
+                    "https://cobalt.tools/api/json"
+                  };
+                  for (String base : COBALT) {
+                    try {
+                      String json = "{\"url\":\"" + mediaUrl + "\",\"downloadMode\":\"audio\",\"audioFormat\":\"mp3\",\"audioBitrate\":\"128\"}";
+                      HttpURLConnection c = (HttpURLConnection) new URL(base).openConnection();
+                      c.setConnectTimeout(20000);
+                      c.setReadTimeout(30000);
+                      c.setDoOutput(true);
+                      c.setRequestMethod("POST");
+                      c.setRequestProperty("Content-Type", "application/json");
+                      c.setRequestProperty("Accept", "application/json");
+                      c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) GengarMusic/3.2");
+                      c.setRequestProperty("Referer", "https://cobalt.tools/");
+                      byte[] body = json.getBytes(StandardCharsets.UTF_8);
+                      OutputStream os = c.getOutputStream();
+                      os.write(body);
+                      os.close();
+                      int code = c.getResponseCode();
+                      if (code >= 400) { lastErr = "HTTP " + code + " em " + base; continue; }
+                      BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
+                      StringBuilder sb = new StringBuilder();
+                      String line;
+                      while ((line = br.readLine()) != null) sb.append(line);
+                      br.close();
+                      result = sb.toString();
+                      break;
+                    } catch (Exception e) {
+                      lastErr = e.getMessage() != null ? e.getMessage() : e.toString();
+                    }
                   }
                   final String res = result;
                   final String err = lastErr;
@@ -850,3 +887,5 @@ jobs:
         with:
           name: Gengar-Music-APK-release
           path: gm/app/build/outputs/apk/release/app-release.apk
+YMLEOF
+echo "done: $(wc -l < /mnt/user-data/outputs/compilar.yml) linhas"
