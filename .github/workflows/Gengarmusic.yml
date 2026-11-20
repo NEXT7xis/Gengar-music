@@ -1,5 +1,3 @@
-# Gengar Music: este arquivo cria o app Android inteiro e compila o APK.
-# Salve em .github/workflows/compilar.yml, confirme e abra a aba Actions.
 name: Compilar Gengar Music
 on:
   push:
