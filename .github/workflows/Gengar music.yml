@@ -82,8 +82,8 @@ jobs:
               applicationId 'com.gengar.music'
               minSdk 24
               targetSdk 34
-              versionCode 12
-              versionName '3.0'
+              versionCode 13
+              versionName '3.1'
             }
             signingConfigs {
               release {
@@ -330,7 +330,7 @@ jobs:
               HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
               c.setConnectTimeout(12000);
               c.setReadTimeout(15000);
-              c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) GengarMusic/3.0");
+              c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) GengarMusic/3.1");
               c.setRequestProperty("Accept", "application/json");
               int code = c.getResponseCode();
               if (code >= 400) throw new Exception("HTTP " + code);
@@ -349,7 +349,7 @@ jobs:
               c.setRequestMethod("POST");
               c.setRequestProperty("Content-Type", "application/json");
               c.setRequestProperty("Accept", "application/json");
-              c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) GengarMusic/3.0");
+              c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) GengarMusic/3.1");
               byte[] body = json.getBytes(StandardCharsets.UTF_8);
               OutputStream os = c.getOutputStream();
               os.write(body);
@@ -710,7 +710,7 @@ jobs:
           <main id="s"><label class="add">Adicionar músicas<input type="file" id="f" accept="audio/*" multiple hidden></label><ul id="sl"></ul></main>
           <main id="l" hidden><div class="mk"><input id="pn" placeholder="Nome da playlist"><button id="pc">Criar</button></div><ul id="ll"></ul></main>
           <main id="dw" hidden>
-          <div class="mk"><input id="dlk" placeholder="Link direto de um mp3"><button id="dgo">Baixar</button></div>
+          <div class="mk"><input id="dlk" placeholder="Link de vídeo (YT, etc) ou mp3 direto"><button id="dgo">Baixar áudio</button></div>
           <div class="mk" style="flex-wrap:wrap;gap:8px">
           <input id="dq" placeholder="Buscar música" style="flex:1;min-width:0">
           <select id="dso" style="max-width:130px"><option value="d">Deezer+YT</option><option value="a">Audius</option><option value="j">Jamendo</option></select>
@@ -805,7 +805,21 @@ jobs:
           (function nx(){const s=Android.chunk(id,off,L);if(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);P.push(u);off+=b.length;if(off<r.size)return setTimeout(nx,0)}
           Android.del(id);if(!off){st('Erro ao salvar o arquivo');return}
           const sid=Date.now()+Math.random().toString(36).slice(2,6);put(sid,new Blob(P,{type:/^audio/.test(r.type)?r.type:'audio/mpeg'}));S.songs.push({id:sid,n:p.by?n+' - '+p.by:n,t:n,by:p.by||''});save();draw();st('Pronto: '+n+' (aba Músicas)')})()}
-          $('dgo').onclick=()=>{const u=$('dlk').value.trim();if(!/^https?:\/\//i.test(u)){st('Cole um link que comece com http');return}let n='Música';try{n=decodeURIComponent(u.split('?')[0].split('/').pop()).replace(/\.[^.]+$/,'')||n}catch(e){}dl(u,n)};
+          $('dgo').onclick=async()=>{
+            const u=$('dlk').value.trim();
+            if(!/^https?:\/\//i.test(u)){st('Cole um link que comece com http');return}
+            let n='Música';
+            try{n=decodeURIComponent(u.split('?')[0].split('/').pop()).replace(/\.[^.]+$/,'')||n}catch(e){}
+            if(/\.(mp3|ogg|flac|wav|m4a|aac|opus)(\?|$)/i.test(u.split('?')[0])){dl(u,n);return}
+            st('Extraindo áudio via Cobalt...');
+            try{
+              const c=await javaCall('cobaltGet',u);
+              const url=c.url||c.audio_url||(c.picker&&c.picker[0]&&c.picker[0].url);
+              if(!url)throw new Error(c.error||'Cobalt não encontrou áudio nesse link');
+              const fname=c.filename?c.filename.replace(/\.[^.]+$/,''):n;
+              dl(url,fname);
+            }catch(e){st('Erro: '+e.message)}
+          };
           $('dbs').onclick=async()=>{const q=$('dq').value.trim(),j=$('djk').value.trim(),src=$('dso').value;if(!q)return;try{localStorage.jk=j}catch(e){}st('Buscando...');$('dres').innerHTML='';
           try{let R=[];
           if(src=='d'){
