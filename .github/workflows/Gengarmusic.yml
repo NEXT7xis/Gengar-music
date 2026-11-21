@@ -784,7 +784,7 @@ jobs:
           <div class="mk"><input id="dlk" placeholder="Link de vídeo (YT, etc) ou mp3 direto"><button id="dgo">Baixar áudio</button></div>
           <div class="mk" style="flex-wrap:wrap;gap:8px">
           <input id="dq" placeholder="Buscar música" style="flex:1;min-width:0">
-          <select id="dso" style="max-width:130px"><option value="d">Deezer+YT</option><option value="a">Audius</option><option value="j">Jamendo</option></select>
+          <select id="dso" style="max-width:130px"><option value="d">Deezer+YT</option><option value="sc">SoundCloud</option><option value="a">Audius</option><option value="j">Jamendo</option></select>
           <button id="dbs" style="margin-bottom:0">Buscar</button>
           </div>
           <div class="mk"><input id="djk" placeholder="Chave do Jamendo (só para Jamendo)"></div>
@@ -896,6 +896,17 @@ jobs:
           if(src=='d'){
             const d=await javaCall('deezerSearch',q);
             R=(d.data||[]).map(t=>({n:t.title,by:t.artist&&t.artist.name,dur:t.duration}));
+          }else if(src=='sc'){
+            // SoundCloud: busca via noembed/widget API sem client_id fixo
+            const SC_CLIENT='iZIs9mchVcX5lhVRyQNGogft6g0b5dJT';
+            const r=await(await fetch('https://api.soundcloud.com/tracks?q='+encodeURIComponent(q)+'&limit=15&linked_partitioning=1&client_id='+SC_CLIENT)).json();
+            const tracks=(r.collection||r||[]);
+            R=tracks.filter(t=>t.streamable&&t.stream_url).map(t=>({
+              n:t.title,
+              by:t.user&&t.user.username,
+              dur:Math.round((t.duration||0)/1000),
+              u:t.stream_url+'?client_id='+SC_CLIENT
+            }));
           }else if(src=='a'){
             const r=await(await fetch('https://api.audius.co/v1/tracks/search?limit=15&app_name=GengarMusic&query='+encodeURIComponent(q))).json();
             R=(r.data||[]).map(t=>({n:t.title,by:t.user&&t.user.name,u:'https://api.audius.co/v1/tracks/'+t.id+'/stream?app_name=GengarMusic'}))
