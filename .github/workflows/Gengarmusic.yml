@@ -113,6 +113,9 @@ jobs:
               sourceCompatibility JavaVersion.VERSION_17
               targetCompatibility JavaVersion.VERSION_17
             }
+            dependencies {
+              implementation 'org.json:json:20240303'
+            }
           }
           EOF
           cat > app/proguard-rules.pro <<'EOF'
@@ -120,6 +123,7 @@ jobs:
               @android.webkit.JavascriptInterface <methods>;
           }
           -keep class com.gengar.music.MainActivity$Bridge { *; }
+          -keep class org.json.** { *; }
           -dontwarn org.conscrypt.**
           EOF
           cat > app/src/main/AndroidManifest.xml <<'EOF'
@@ -405,51 +409,59 @@ jobs:
               }
               @JavascriptInterface public void cobaltGet(final String mediaUrl, final String cbId) {
                 new Thread(() -> {
-                  String result = null;
+                  String audioUrl = null;
                   String lastErr = "Erro ao extrair áudio";
-                  // instâncias cobalt públicas em ordem de fallback
-                  String[] COBALT = {
-                    "https://api.cobalt.tools/",
-                    "https://cobalt.amseres.dev/",
-                    "https://cobalt.datura.network/",
-                    "https://co.wuk.sh/"
-                  };
-                  for (String base : COBALT) {
-                    try {
-                      // formato API cobalt v7+
-                      String json = "{\"url\":\"" + mediaUrl + "\",\"isAudioOnly\":true,\"aFormat\":\"mp3\",\"audioBitrate\":\"128\"}";
-                      HttpURLConnection c = (HttpURLConnection) new URL(base).openConnection();
-                      c.setConnectTimeout(20000);
-                      c.setReadTimeout(30000);
-                      c.setDoOutput(true);
-                      c.setRequestMethod("POST");
-                      c.setRequestProperty("Content-Type", "application/json");
-                      c.setRequestProperty("Accept", "application/json");
-                      c.setRequestProperty("User-Agent", "Mozilla/5.0 (Android) GengarMusic/3.2");
-                      c.setRequestProperty("Referer", "https://cobalt.tools/");
-                      byte[] body = json.getBytes(StandardCharsets.UTF_8);
-                      OutputStream os = c.getOutputStream();
-                      os.write(body);
-                      os.close();
-                      int code = c.getResponseCode();
-                      if (code >= 400) { lastErr = "HTTP " + code + " em " + base; continue; }
-                      BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
-                      StringBuilder sb = new StringBuilder();
-                      String line;
-                      while ((line = br.readLine()) != null) sb.append(line);
-                      br.close();
-                      result = sb.toString();
-                      break;
-                    } catch (Exception e) {
-                      lastErr = e.getMessage() != null ? e.getMessage() : e.toString();
+                  // extrai videoId da URL do YouTube/youtu.be
+                  String vid = "";
+                  try {
+                    java.net.URL u = new java.net.URL(mediaUrl);
+                    String host = u.getHost();
+                    if (host.contains("youtu.be")) {
+                      vid = u.getPath().replaceAll("^/", "").split("[?&]")[0];
+                    } else {
+                      String q = u.getQuery() != null ? u.getQuery() : "";
+                      for (String p : q.split("&")) {
+                        if (p.startsWith("v=")) { vid = p.substring(2); break; }
+                      }
+                    }
+                  } catch (Exception e) { lastErr = e.toString(); }
+                  if (!vid.isEmpty()) {
+                    // instâncias Invidious públicas — devolvem streams de áudio sem autenticação
+                    String[] INV = {
+                      "https://invidious.snopyta.org",
+                      "https://yt.artemislena.eu",
+                      "https://invidious.nerdvpn.de",
+                      "https://invidious.privacydev.net",
+                      "https://iv.melmac.space"
+                    };
+                    for (String base : INV) {
+                      try {
+                        String raw = httpGet(base + "/api/v1/videos/" + vid + "?fields=adaptiveFormats,title");
+                        // pega primeira URL de áudio (itag 140 = m4a 128k, ou qualquer audio)
+                        org.json.JSONObject obj = new org.json.JSONObject(raw);
+                        org.json.JSONArray fmts = obj.getJSONArray("adaptiveFormats");
+                        String best = null;
+                        int bestBr = 0;
+                        for (int i2 = 0; i2 < fmts.length(); i2++) {
+                          org.json.JSONObject f = fmts.getJSONObject(i2);
+                          String mime = f.optString("type","");
+                          if (!mime.startsWith("audio/")) continue;
+                          int br = f.optInt("bitrate", 0);
+                          if (br > bestBr) { bestBr = br; best = f.getString("url"); }
+                        }
+                        if (best != null) { audioUrl = best; break; }
+                      } catch (Exception e) {
+                        lastErr = e.getMessage() != null ? e.getMessage() : e.toString();
+                      }
                     }
                   }
-                  final String res = result;
+                  final String url = audioUrl;
                   final String err = lastErr;
                   UI.post(() -> {
                     if (web == null) return;
-                    if (res != null) {
-                      web.evaluateJavascript("window.gmApi&&gmApi('" + cbId + "'," + res + ")", null);
+                    if (url != null) {
+                      String safeUrl = url.replace("\\", "\\\\").replace("\"", "\\\"");
+                      web.evaluateJavascript("window.gmApi&&gmApi('" + cbId + "',{\"status\":\"stream\",\"url\":\"" + safeUrl + "\"})", null);
                     } else {
                       web.evaluateJavascript("window.gmApiErr&&gmApiErr('" + cbId + "','" + esc(err) + "')", null);
                     }
