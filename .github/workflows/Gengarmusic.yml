@@ -407,10 +407,13 @@ jobs:
                 new Thread(() -> {
                   String result = null;
                   String lastErr = "Erro ao extrair áudio";
-                  // instâncias cobalt em ordem de fallback
+                  // instâncias cobalt públicas em ordem de fallback
                   String[] COBALT = {
-                    "https://api.cobalt.tools/",
-                    "https://cobalt.tools/api/json"
+                    "https://cobalt.amseres.dev/",
+                    "https://cobalt.datura.network/",
+                    "https://cobalt.hectarek.workers.dev/",
+                    "https://cobalt.esmBot.net/",
+                    "https://api.cobalt.tools/"
                   };
                   for (String base : COBALT) {
                     try {
