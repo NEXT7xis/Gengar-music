@@ -897,13 +897,12 @@ jobs:
             const d=await javaCall('deezerSearch',q);
             R=(d.data||[]).map(t=>({n:t.title,by:t.artist&&t.artist.name,dur:t.duration}));
           }else if(src=='sc'){
-            // SoundCloud: busca via noembed/widget API sem client_id fixo
             const SC_CLIENT='iZIs9mchVcX5lhVRyQNGogft6g0b5dJT';
-            const r=await(await fetch('https://api.soundcloud.com/tracks?q='+encodeURIComponent(q)+'&limit=15&linked_partitioning=1&client_id='+SC_CLIENT)).json();
-            const tracks=(r.collection||r||[]);
-            R=tracks.filter(t=>t.streamable&&t.stream_url).map(t=>({
-              n:t.title,
-              by:t.user&&t.user.username,
+            const raw=await(await fetch('https://api.soundcloud.com/tracks?q='+encodeURIComponent(q)+'&limit=15&linked_partitioning=1&client_id='+SC_CLIENT)).json();
+            const tracks=Array.isArray(raw)?raw:Array.isArray(raw.collection)?raw.collection:[];
+            R=tracks.filter(t=>t&&t.streamable&&t.stream_url).map(t=>({
+              n:t.title||'?',
+              by:t.user&&t.user.username||'',
               dur:Math.round((t.duration||0)/1000),
               u:t.stream_url+'?client_id='+SC_CLIENT
             }));
