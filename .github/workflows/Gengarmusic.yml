@@ -409,15 +409,15 @@ jobs:
                   String lastErr = "Erro ao extrair áudio";
                   // instâncias cobalt públicas em ordem de fallback
                   String[] COBALT = {
+                    "https://api.cobalt.tools/",
                     "https://cobalt.amseres.dev/",
                     "https://cobalt.datura.network/",
-                    "https://cobalt.hectarek.workers.dev/",
-                    "https://cobalt.esmBot.net/",
-                    "https://api.cobalt.tools/"
+                    "https://co.wuk.sh/"
                   };
                   for (String base : COBALT) {
                     try {
-                      String json = "{\"url\":\"" + mediaUrl + "\",\"downloadMode\":\"audio\",\"audioFormat\":\"mp3\",\"audioBitrate\":\"128\"}";
+                      // formato API cobalt v7+
+                      String json = "{\"url\":\"" + mediaUrl + "\",\"isAudioOnly\":true,\"aFormat\":\"mp3\",\"audioBitrate\":\"128\"}";
                       HttpURLConnection c = (HttpURLConnection) new URL(base).openConnection();
                       c.setConnectTimeout(20000);
                       c.setReadTimeout(30000);
