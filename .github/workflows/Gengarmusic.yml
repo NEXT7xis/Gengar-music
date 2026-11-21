@@ -113,9 +113,6 @@ jobs:
               sourceCompatibility JavaVersion.VERSION_17
               targetCompatibility JavaVersion.VERSION_17
             }
-            dependencies {
-              implementation 'org.json:json:20240303'
-            }
           }
           EOF
           cat > app/proguard-rules.pro <<'EOF'
@@ -123,7 +120,6 @@ jobs:
               @android.webkit.JavascriptInterface <methods>;
           }
           -keep class com.gengar.music.MainActivity$Bridge { *; }
-          -keep class org.json.** { *; }
           -dontwarn org.conscrypt.**
           EOF
           cat > app/src/main/AndroidManifest.xml <<'EOF'
@@ -415,41 +411,65 @@ jobs:
                   String vid = "";
                   try {
                     java.net.URL u = new java.net.URL(mediaUrl);
-                    String host = u.getHost();
+                    String host = u.getHost() != null ? u.getHost() : "";
                     if (host.contains("youtu.be")) {
-                      vid = u.getPath().replaceAll("^/", "").split("[?&]")[0];
+                      vid = u.getPath().replaceAll("^/", "").split("[?&#]")[0];
                     } else {
                       String q = u.getQuery() != null ? u.getQuery() : "";
                       for (String p : q.split("&")) {
-                        if (p.startsWith("v=")) { vid = p.substring(2); break; }
+                        if (p.startsWith("v=")) { vid = p.substring(2).split("&")[0]; break; }
                       }
                     }
                   } catch (Exception e) { lastErr = e.toString(); }
                   if (!vid.isEmpty()) {
-                    // instâncias Invidious públicas — devolvem streams de áudio sem autenticação
-                    String[] INV = {
-                      "https://invidious.snopyta.org",
-                      "https://yt.artemislena.eu",
-                      "https://invidious.nerdvpn.de",
-                      "https://invidious.privacydev.net",
-                      "https://iv.melmac.space"
+                    // usa Piped /streams/ — mesmas instâncias do ytSearch já funcionando
+                    String[] PIPED = {
+                      "https://pipedapi.kavin.rocks",
+                      "https://pipedapi.in.projectsegfau.lt",
+                      "https://pipedapi.adminforge.de"
                     };
-                    for (String base : INV) {
+                    for (String base : PIPED) {
                       try {
-                        String raw = httpGet(base + "/api/v1/videos/" + vid + "?fields=adaptiveFormats,title");
-                        // pega primeira URL de áudio (itag 140 = m4a 128k, ou qualquer audio)
-                        org.json.JSONObject obj = new org.json.JSONObject(raw);
-                        org.json.JSONArray fmts = obj.getJSONArray("adaptiveFormats");
+                        String raw = httpGet(base + "/streams/" + vid);
+                        // parse manual do JSON — sem dependência externa
+                        // procura "audioStreams" e pega url do melhor bitrate
+                        int idx = raw.indexOf("\"audioStreams\"");
+                        if (idx < 0) { lastErr = "sem audioStreams"; continue; }
+                        String sub = raw.substring(idx);
                         String best = null;
                         int bestBr = 0;
-                        for (int i2 = 0; i2 < fmts.length(); i2++) {
-                          org.json.JSONObject f = fmts.getJSONObject(i2);
-                          String mime = f.optString("type","");
-                          if (!mime.startsWith("audio/")) continue;
-                          int br = f.optInt("bitrate", 0);
-                          if (br > bestBr) { bestBr = br; best = f.getString("url"); }
+                        int pos = 0;
+                        while (true) {
+                          int urlIdx = sub.indexOf("\"url\":\"", pos);
+                          if (urlIdx < 0) break;
+                          int urlStart = urlIdx + 7;
+                          int urlEnd = sub.indexOf("\"", urlStart);
+                          if (urlEnd < 0) break;
+                          String candidate = sub.substring(urlStart, urlEnd).replace("\\/", "/");
+                          // pega bitrate próximo
+                          int brIdx = sub.indexOf("\"bitrate\":", pos);
+                          int br = 0;
+                          if (brIdx >= 0 && brIdx < urlIdx + 200) {
+                            int brStart = brIdx + 10;
+                            int brEnd = brStart;
+                            while (brEnd < sub.length() && Character.isDigit(sub.charAt(brEnd))) brEnd++;
+                            try { br = Integer.parseInt(sub.substring(brStart, brEnd)); } catch (Exception ignored) {}
+                          }
+                          if (candidate.startsWith("http") && br > bestBr) {
+                            bestBr = br; best = candidate;
+                          }
+                          pos = urlEnd + 1;
                         }
                         if (best != null) { audioUrl = best; break; }
+                        // se parse falhou, tenta pegar qualquer url de áudio
+                        if (audioUrl == null) {
+                          int firstUrl = sub.indexOf("\"url\":\"http");
+                          if (firstUrl >= 0) {
+                            int s2 = firstUrl + 7;
+                            int e2 = sub.indexOf("\"", s2);
+                            if (e2 > s2) { audioUrl = sub.substring(s2, e2).replace("\\/", "/"); break; }
+                          }
+                        }
                       } catch (Exception e) {
                         lastErr = e.getMessage() != null ? e.getMessage() : e.toString();
                       }
@@ -460,7 +480,7 @@ jobs:
                   UI.post(() -> {
                     if (web == null) return;
                     if (url != null) {
-                      String safeUrl = url.replace("\\", "\\\\").replace("\"", "\\\"");
+                      String safeUrl = esc(url);
                       web.evaluateJavascript("window.gmApi&&gmApi('" + cbId + "',{\"status\":\"stream\",\"url\":\"" + safeUrl + "\"})", null);
                     } else {
                       web.evaluateJavascript("window.gmApiErr&&gmApiErr('" + cbId + "','" + esc(err) + "')", null);
